@@ -32,7 +32,7 @@ function AuthPage() {
     setLoading(true);
     try {
       if (mode === "signup") {
-        const { error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: {
@@ -41,6 +41,11 @@ function AuthPage() {
           },
         });
         if (error) throw error;
+        if (!data.session) {
+          toast.success("Conta criada! Confirme seu e-mail para entrar.");
+          setMode("login");
+          return;
+        }
         toast.success("Conta criada! Bem-vindo(a) 🔥");
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
@@ -48,6 +53,7 @@ function AuthPage() {
         toast.success("Login feito!");
       }
       navigate({ to: target });
+
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erro inesperado");
     } finally {
