@@ -10,7 +10,9 @@ export const registerAdminAccount = createServerFn({ method: "POST" })
     registrationKey: z.string().min(1),
   }))
   .handler(async ({ data }) => {
-    const { email, password, name, registrationKey } = data;
+    const { password, registrationKey } = data;
+    const email = data.email.trim().toLowerCase();
+    const name = data.name.trim();
 
     // Validate the admin registration key server-side
     const expectedKey = process.env.ADMIN_REGISTRATION_KEY;
@@ -21,38 +23,71 @@ export const registerAdminAccount = createServerFn({ method: "POST" })
       throw new Error("Chave de registro inválida.");
     }
 
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    let createdUserId: string | null = null;
+
     try {
-      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-
-      // Create user via service role
-
-      const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
-        email,
-        password,
-        email_confirm: true,
-        user_metadata: { full_name: name },
+      const { data: usersPage, error: listUsersError } = await supabaseAdmin.auth.admin.listUsers({
+        page: 1,
+        perPage: 1000,
       });
 
-      if (authError) throw authError;
-      if (!authData.user) throw new Error("Falha ao criar usuário");
+      if (listUsersError) throw listUsersError;
 
-      // Create profile
+      const existingUser = usersPage.users.find((user) => user.email?.toLowerCase() === email);
+
+      let userId = existingUser?.id ?? null;
+
+      if (existingUser) {
+        const { error: updateUserError } = await supabaseAdmin.auth.admin.updateUserById(existingUser.id, {
+          password,
+          email_confirm: true,
+          user_metadata: {
+            ...(existingUser.user_metadata ?? {}),
+            full_name: name,
+            name,
+          },
+        });
+
+        if (updateUserError) throw updateUserError;
+      } else {
+        const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+          email,
+          password,
+          email_confirm: true,
+          user_metadata: { full_name: name, name },
+        });
+
+        if (authError) throw authError;
+        if (!authData.user) throw new Error("Falha ao criar usuário");
+
+        userId = authData.user.id;
+        createdUserId = authData.user.id;
+      }
+
+      if (!userId) throw new Error("Falha ao localizar usuário");
+
       const { error: profileError } = await supabaseAdmin
         .from("profiles")
-        .insert({
-          id: authData.user.id,
-          email,
-          full_name: name,
-        });
+        .upsert(
+          {
+            id: userId,
+            email,
+            full_name: name,
+          },
+          { onConflict: "id" },
+        );
       if (profileError) throw profileError;
 
-      // Create admin role
       const { error: roleError } = await supabaseAdmin
         .from("user_roles")
-        .insert({
-          user_id: authData.user.id,
-          role: "admin",
-        });
+        .upsert(
+          {
+            user_id: userId,
+            role: "admin",
+          },
+          { onConflict: "user_id,role" },
+        );
       if (roleError) throw roleError;
 
       return {
@@ -60,6 +95,9 @@ export const registerAdminAccount = createServerFn({ method: "POST" })
         message: "Administrador criado com sucesso! Faça login agora.",
       };
     } catch (err) {
+      if (createdUserId) {
+        await supabaseAdmin.auth.admin.deleteUser(createdUserId).catch(() => undefined);
+      }
       throw new Error(err instanceof Error ? err.message : "Erro ao criar admin");
     }
   });
