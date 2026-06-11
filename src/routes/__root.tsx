@@ -11,6 +11,7 @@ import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
+import { CartProvider } from "../lib/cart-store";
 
 function NotFoundComponent() {
   return (
@@ -77,19 +78,25 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lovable App" },
-      { name: "description", content: "Lovable Generated Project" },
-      { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Lovable App" },
-      { property: "og:description", content: "Lovable Generated Project" },
+      { title: "BlazeBurger — Smash Burgers Artesanais" },
+      { name: "description", content: "Hambúrgueres artesanais, combos e porções com entrega rápida." },
+      { name: "theme-color", content: "#121212" },
+      { property: "og:title", content: "BlazeBurger — Smash Burgers Artesanais" },
+      { property: "og:description", content: "Hambúrgueres artesanais, combos e porções com entrega rápida." },
       { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary" },
-      { name: "twitter:site", content: "@Lovable" },
+      { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:title", content: "BlazeBurger — Smash Burgers Artesanais" },
+      { name: "twitter:description", content: "Hambúrgueres artesanais, combos e porções com entrega rápida." },
+      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/718af665-b410-4dee-8405-584be00b50db/id-preview-7180d2ae--b25fb497-daee-40ac-b0c6-873a92946551.lovable.app-1780857368337.png" },
+      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/718af665-b410-4dee-8405-584be00b50db/id-preview-7180d2ae--b25fb497-daee-40ac-b0c6-873a92946551.lovable.app-1780857368337.png" },
     ],
     links: [
+      { rel: "stylesheet", href: appCss },
+      { rel: "preconnect", href: "https://fonts.googleapis.com" },
+      { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
       {
         rel: "stylesheet",
-        href: appCss,
+        href: "https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800;900&family=Inter:wght@400;500;600;700&display=swap",
       },
     ],
   }),
@@ -118,8 +125,10 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-      <Outlet />
+      <CartProvider>
+        {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+        <Outlet />
+      </CartProvider>
     </QueryClientProvider>
   );
 }
