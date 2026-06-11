@@ -22,7 +22,10 @@ export const registerAdminAccount = createServerFn({ method: "POST" })
     }
 
     try {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
       // Create user via service role
+
       const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
         email,
         password,
