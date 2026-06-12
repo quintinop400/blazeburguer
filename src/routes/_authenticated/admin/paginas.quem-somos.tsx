@@ -127,10 +127,9 @@ function QuemSomosAdmin() {
             <input className={inputCls} value={c.hero.badge}
               onChange={e => setC({ ...c, hero: { ...c.hero, badge: e.target.value } })} />
           </Field>
-          <Field label="URL da imagem">
-            <input className={inputCls} value={c.hero.image_url}
-              onChange={e => setC({ ...c, hero: { ...c.hero, image_url: e.target.value } })} />
-          </Field>
+          <AdminImageField label="Imagem do hero" value={c.hero.image_url}
+            onChange={(v) => setC({ ...c, hero: { ...c.hero, image_url: v } })} />
+
           <Field label="Título — primeira parte">
             <input className={inputCls} value={c.hero.title_part1}
               onChange={e => setC({ ...c, hero: { ...c.hero, title_part1: e.target.value } })} />
