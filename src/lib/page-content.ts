@@ -25,6 +25,7 @@ export const DEFAULTS: Record<PageSlug, Record<string, unknown>> = {
     hero_subtitle: "Smash burgers artesanais, combos imperdíveis e a melhor batata da cidade.",
     hero_cta: "Ver cardápio",
     hero_cta_link: "/menu",
+    hero_image_url: "",
   },
   footer: {
     about: "Smash burgers artesanais com ingredientes selecionados e entrega rápida na sua porta.",
