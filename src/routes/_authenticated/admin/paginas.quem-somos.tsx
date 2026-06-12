@@ -9,6 +9,7 @@ import {
   mergeQuemSomos,
   type QuemSomosContent,
 } from "@/lib/quem-somos-content";
+import { AdminImageField } from "@/components/admin/PageFormBits";
 
 export const Route = createFileRoute("/_authenticated/admin/paginas/quem-somos")({
   component: QuemSomosAdmin,
@@ -126,10 +127,9 @@ function QuemSomosAdmin() {
             <input className={inputCls} value={c.hero.badge}
               onChange={e => setC({ ...c, hero: { ...c.hero, badge: e.target.value } })} />
           </Field>
-          <Field label="URL da imagem">
-            <input className={inputCls} value={c.hero.image_url}
-              onChange={e => setC({ ...c, hero: { ...c.hero, image_url: e.target.value } })} />
-          </Field>
+          <AdminImageField label="Imagem do hero" value={c.hero.image_url}
+            onChange={(v) => setC({ ...c, hero: { ...c.hero, image_url: v } })} />
+
           <Field label="Título — primeira parte">
             <input className={inputCls} value={c.hero.title_part1}
               onChange={e => setC({ ...c, hero: { ...c.hero, title_part1: e.target.value } })} />
@@ -158,8 +158,8 @@ function QuemSomosAdmin() {
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Eyebrow"><input className={inputCls} value={c.historia.eyebrow}
             onChange={e => setC({ ...c, historia: { ...c.historia, eyebrow: e.target.value } })} /></Field>
-          <Field label="URL da imagem"><input className={inputCls} value={c.historia.image_url}
-            onChange={e => setC({ ...c, historia: { ...c.historia, image_url: e.target.value } })} /></Field>
+          <AdminImageField label="Imagem" value={c.historia.image_url}
+            onChange={(v) => setC({ ...c, historia: { ...c.historia, image_url: v } })} />
         </div>
         <Field label="Título"><input className={inputCls} value={c.historia.title}
           onChange={e => setC({ ...c, historia: { ...c.historia, title: e.target.value } })} /></Field>
@@ -270,8 +270,10 @@ function QuemSomosAdmin() {
                 <input className={inputCls} placeholder="Cargo" value={m.role}
                   onChange={e => setC({ ...c, equipe: { ...c.equipe, members: updateArr(c.equipe.members, i, { role: e.target.value }) } })} />
               </div>
-              <input className={`${inputCls} mt-2`} placeholder="URL da foto" value={m.img}
-                onChange={e => setC({ ...c, equipe: { ...c.equipe, members: updateArr(c.equipe.members, i, { img: e.target.value }) } })} />
+              <div className="mt-2">
+                <AdminImageField label="Foto do membro" value={m.img}
+                  onChange={(v) => setC({ ...c, equipe: { ...c.equipe, members: updateArr(c.equipe.members, i, { img: v }) } })} />
+              </div>
               <textarea rows={2} className={`${taCls} mt-2`} placeholder="Descrição" value={m.desc}
                 onChange={e => setC({ ...c, equipe: { ...c.equipe, members: updateArr(c.equipe.members, i, { desc: e.target.value }) } })} />
             </div>
@@ -322,9 +324,11 @@ function QuemSomosAdmin() {
         </div>
         <div className="space-y-2">
           {c.galeria.images.map((url, i) => (
-            <div key={i} className="flex gap-2">
-              <input className={inputCls} placeholder="URL da imagem" value={url}
-                onChange={e => setC({ ...c, galeria: { ...c.galeria, images: c.galeria.images.map((x, idx) => idx === i ? e.target.value : x) } })} />
+            <div key={i} className="flex items-end gap-2">
+              <div className="flex-1">
+                <AdminImageField label={`Foto #${i + 1}`} value={url}
+                  onChange={(v) => setC({ ...c, galeria: { ...c.galeria, images: c.galeria.images.map((x, idx) => idx === i ? v : x) } })} />
+              </div>
               <button onClick={() => setC({ ...c, galeria: { ...c.galeria, images: removeAt(c.galeria.images, i) } })}
                 className="grid h-11 w-11 shrink-0 place-items-center rounded-lg border border-border text-destructive hover:bg-destructive hover:text-destructive-foreground">
                 <Trash2 className="h-4 w-4" />
@@ -402,8 +406,8 @@ function QuemSomosAdmin() {
             onChange={e => setC({ ...c, social: { ...c.social, title: e.target.value } })} /></Field>
           <Field label="CTA"><input className={inputCls} value={c.social.cta_label}
             onChange={e => setC({ ...c, social: { ...c.social, cta_label: e.target.value } })} /></Field>
-          <Field label="URL da imagem de fundo"><input className={inputCls} value={c.social.image_url}
-            onChange={e => setC({ ...c, social: { ...c.social, image_url: e.target.value } })} /></Field>
+          <AdminImageField label="Imagem de fundo" value={c.social.image_url}
+            onChange={(v) => setC({ ...c, social: { ...c.social, image_url: v } })} />
         </div>
         <Field label="Descrição">
           <textarea rows={3} className={taCls} value={c.social.description}

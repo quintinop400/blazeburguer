@@ -1,5 +1,7 @@
+import { useState } from "react";
 import { toast } from "sonner";
-import { Loader2, Save } from "lucide-react";
+import { Loader2, Save, Image as ImageIcon, X } from "lucide-react";
+import { MediaPicker } from "@/components/MediaPicker";
 
 export function AdminInput({
   label,
@@ -73,3 +75,66 @@ export function AdminSection({ title, children }: { title: string; children: Rea
     </section>
   );
 }
+
+export function AdminImageField({
+  label,
+  value,
+  onChange,
+  className = "",
+  placeholder = "https://...",
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  className?: string;
+  placeholder?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className={`block ${className}`}>
+      <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{label}</span>
+      <div className="mt-1 flex gap-2">
+        {value ? (
+          <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-lg border border-border bg-surface">
+            <img src={value} alt="" className="h-full w-full object-cover" />
+            <button
+              type="button"
+              onClick={() => onChange("")}
+              className="absolute right-0 top-0 grid h-4 w-4 place-items-center rounded-bl bg-background/80 text-destructive"
+              aria-label="Remover imagem"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          </div>
+        ) : (
+          <div className="grid h-11 w-11 shrink-0 place-items-center rounded-lg border border-dashed border-border bg-surface/40 text-muted-foreground">
+            <ImageIcon className="h-4 w-4" />
+          </div>
+        )}
+        <input
+          type="url"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          className="h-11 min-w-0 flex-1 rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-brand"
+        />
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="inline-flex h-11 shrink-0 items-center gap-1.5 rounded-lg border border-border bg-surface px-3 text-xs font-semibold hover:border-brand hover:text-brand"
+        >
+          <ImageIcon className="h-3.5 w-3.5" /> Mídia
+        </button>
+      </div>
+      <MediaPicker
+        open={open}
+        onClose={() => setOpen(false)}
+        onPick={(a) => {
+          onChange(a.url);
+          setOpen(false);
+        }}
+      />
+    </div>
+  );
+}
+

@@ -26,6 +26,7 @@ type HomeContent = {
   hero_subtitle: string;
   hero_cta: string;
   hero_cta_link: string;
+  hero_image_url: string;
 };
 
 function Home() {
@@ -77,7 +78,7 @@ function Home() {
           <div className="relative">
             <div className="absolute inset-0 -z-10 rounded-[3rem] bg-gradient-to-br from-brand/30 to-flame/20 blur-3xl" />
             <img
-              src={heroBurger}
+              src={c.hero_image_url || heroBurger}
               alt="Smash burger artesanal com bacon e cheddar"
               width={1536}
               height={1280}
