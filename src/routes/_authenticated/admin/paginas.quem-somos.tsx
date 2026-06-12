@@ -406,8 +406,8 @@ function QuemSomosAdmin() {
             onChange={e => setC({ ...c, social: { ...c.social, title: e.target.value } })} /></Field>
           <Field label="CTA"><input className={inputCls} value={c.social.cta_label}
             onChange={e => setC({ ...c, social: { ...c.social, cta_label: e.target.value } })} /></Field>
-          <Field label="URL da imagem de fundo"><input className={inputCls} value={c.social.image_url}
-            onChange={e => setC({ ...c, social: { ...c.social, image_url: e.target.value } })} /></Field>
+          <AdminImageField label="Imagem de fundo" value={c.social.image_url}
+            onChange={(v) => setC({ ...c, social: { ...c.social, image_url: v } })} />
         </div>
         <Field label="Descrição">
           <textarea rows={3} className={taCls} value={c.social.description}
