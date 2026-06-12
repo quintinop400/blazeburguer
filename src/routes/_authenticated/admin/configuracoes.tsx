@@ -1,273 +1,186 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Save, AlertTriangle, Shield, Database, FileText, Bell } from "lucide-react";
+import { Save, Clock, MessageCircle } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import type { BusinessHoursConfig } from "@/lib/business-hours";
 
 export const Route = createFileRoute("/_authenticated/admin/configuracoes")({
   component: SettingsPage,
 });
 
+const DAYS = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
+
+function maskPhone(v: string) {
+  const d = v.replace(/\D/g, "").slice(0, 11);
+  if (d.length <= 2) return `(${d}`;
+  if (d.length <= 7) return `(${d.slice(0, 2)}) ${d.slice(2)}`;
+  if (d.length <= 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
+  return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
+}
+
+const DEFAULT_HOURS: BusinessHoursConfig = {
+  enabled: false,
+  schedule: Object.fromEntries(Array.from({ length: 7 }, (_, i) => [String(i), { open: true, from: "11:00", to: "22:00" }])) as BusinessHoursConfig["schedule"],
+  closed_message: "Estamos fechados no momento. Volte em breve!",
+};
+
+async function upsertSetting(key: string, value: unknown) {
+  // tenta update, se nada atingido faz insert
+  const { data: existing } = await supabase.from("settings").select("key").eq("key", key).maybeSingle();
+  if (existing) {
+    return supabase.from("settings").update({ value: value as never }).eq("key", key);
+  }
+  return supabase.from("settings").insert({ key, value: value as never });
+}
+
 function SettingsPage() {
   const qc = useQueryClient();
-  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
 
-  const { data: settings = {} } = useQuery({
-    queryKey: ["admin", "settings"],
+  const { data: whatsapp = "" } = useQuery({
+    queryKey: ["settings", "whatsapp_number"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("settings")
-        .select("key,value")
-        .order("key");
-      if (error) throw error;
-      const obj: Record<string, string> = {};
-      (data ?? []).forEach(row => {
-        obj[row.key] = typeof row.value === "string" ? row.value : JSON.stringify(row.value ?? "");
-      });
-      return obj;
+      const { data } = await supabase.from("settings").select("value").eq("key", "whatsapp_number").maybeSingle();
+      const raw = data?.value;
+      const v = typeof raw === "string" ? raw : (raw as { number?: string } | null)?.number ?? "";
+      return v as string;
     },
   });
 
-  const [formData, setFormData] = useState(settings);
+  const { data: hours } = useQuery({
+    queryKey: ["settings", "business_hours"],
+    queryFn: async () => {
+      const { data } = await supabase.from("settings").select("value").eq("key", "business_hours").maybeSingle();
+      const value = data?.value as Partial<BusinessHoursConfig> | null;
+      if (!value || typeof value !== "object") return DEFAULT_HOURS;
+      return { ...DEFAULT_HOURS, ...value, schedule: { ...DEFAULT_HOURS.schedule, ...(value.schedule ?? {}) } } as BusinessHoursConfig;
+    },
+  });
+
+  const [phone, setPhone] = useState("");
+  const [cfg, setCfg] = useState<BusinessHoursConfig>(DEFAULT_HOURS);
+
+  useEffect(() => { setPhone(maskPhone(whatsapp || "")); }, [whatsapp]);
+  useEffect(() => { if (hours) setCfg(hours); }, [hours]);
 
   async function save() {
-    setLoading(true);
+    setSaving(true);
     try {
-      const keys = Object.keys(formData);
-      for (const key of keys) {
-        const existing = (Object.keys(settings)).includes(key);
-        if (existing) {
-          await supabase.from("settings").update({ value: formData[key] }).eq("key", key);
-        } else {
-          await supabase.from("settings").insert({ key, value: formData[key] });
-        }
-      }
+      const digits = phone.replace(/\D/g, "");
+      await upsertSetting("whatsapp_number", digits);
+      await upsertSetting("business_hours", cfg);
       toast.success("Configurações salvas");
-      qc.invalidateQueries({ queryKey: ["admin", "settings"] });
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Erro ao salvar");
+      qc.invalidateQueries({ queryKey: ["settings"] });
+      qc.invalidateQueries({ queryKey: ["business-hours"] });
+      qc.invalidateQueries({ queryKey: ["whatsapp-number"] });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erro ao salvar");
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   }
+
+  const previewWa = phone.replace(/\D/g, "");
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="font-display text-3xl font-bold">Configurações</h1>
-        <p className="text-sm text-muted-foreground">Gerencie as configurações gerais do sistema</p>
+        <p className="text-sm text-muted-foreground">WhatsApp e horário de funcionamento da loja</p>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        {/* General Settings */}
-        <div className="rounded-2xl border border-border bg-card p-6">
-          <div className="mb-4 flex items-center gap-2">
-            <FileText className="h-5 w-5 text-brand" />
-            <h2 className="font-display text-lg font-bold">Informações da loja</h2>
-          </div>
-          <div className="space-y-4">
-            <Field
-              label="Nome da loja"
-              value={formData.store_name ?? "BlazeBurger"}
-              onChange={v => setFormData({ ...formData, store_name: v })}
-            />
-            <Field
-              label="Telefone"
-              value={formData.store_phone ?? ""}
-              onChange={v => setFormData({ ...formData, store_phone: v })}
-              placeholder="(11) 99999-9999"
-              type="tel"
-            />
-            <Field
-              label="E-mail"
-              value={formData.store_email ?? ""}
-              onChange={v => setFormData({ ...formData, store_email: v })}
-              placeholder="contato@blazeburger.com"
-              type="email"
-            />
-            <Field
-              label="Endereço"
-              value={formData.store_address ?? ""}
-              onChange={v => setFormData({ ...formData, store_address: v })}
-              placeholder="Rua exemplo, 123"
-            />
-          </div>
+      <div className="rounded-2xl border border-border bg-card p-6">
+        <div className="mb-4 flex items-center gap-2">
+          <MessageCircle className="h-5 w-5 text-emerald-500" />
+          <h2 className="font-display text-lg font-bold">WhatsApp da loja</h2>
         </div>
-
-        {/* Delivery Settings */}
-        <div className="rounded-2xl border border-border bg-card p-6">
-          <div className="mb-4 flex items-center gap-2">
-            <Bell className="h-5 w-5 text-flame" />
-            <h2 className="font-display text-lg font-bold">Entrega</h2>
-          </div>
-          <div className="space-y-4">
-            <Field
-              label="Taxa de entrega (R$)"
-              value={formData.delivery_fee ?? "0"}
-              onChange={v => setFormData({ ...formData, delivery_fee: v })}
-              type="number"
-              step="0.01"
-            />
-            <Field
-              label="Tempo mínimo de preparo (min)"
-              value={formData.min_prep_time ?? "20"}
-              onChange={v => setFormData({ ...formData, min_prep_time: v })}
-              type="number"
-            />
-            <Field
-              label="Tempo máximo de entrega (min)"
-              value={formData.max_delivery_time ?? "60"}
-              onChange={v => setFormData({ ...formData, max_delivery_time: v })}
-              type="number"
-            />
-            <Field
-              label="Raio de entrega (km)"
-              value={formData.delivery_radius ?? "15"}
-              onChange={v => setFormData({ ...formData, delivery_radius: v })}
-              type="number"
-              step="0.5"
-            />
-          </div>
-        </div>
-
-        {/* PIX Settings */}
-        <div className="rounded-2xl border border-border bg-card p-6">
-          <div className="mb-4 flex items-center gap-2">
-            <Shield className="h-5 w-5 text-emerald-500" />
-            <h2 className="font-display text-lg font-bold">PIX</h2>
-          </div>
-          <div className="space-y-4">
-            <Field
-              label="Chave PIX"
-              value={formData.pix_key ?? ""}
-              onChange={v => setFormData({ ...formData, pix_key: v })}
-              placeholder="Sua chave PIX"
-            />
-            <Field
-              label="Tipo de chave"
-              value={formData.pix_key_type ?? "cpf"}
-              onChange={v => setFormData({ ...formData, pix_key_type: v })}
-              as="select"
-              options={["cpf", "email", "phone", "random"]}
-            />
-            <Field
-              label="Nome do recebedor"
-              value={formData.pix_receiver_name ?? ""}
-              onChange={v => setFormData({ ...formData, pix_receiver_name: v })}
-              placeholder="Nome completo"
-            />
-          </div>
-        </div>
-
-        {/* Business Hours */}
-        <div className="rounded-2xl border border-border bg-card p-6">
-          <div className="mb-4 flex items-center gap-2">
-            <Database className="h-5 w-5 text-indigo-500" />
-            <h2 className="font-display text-lg font-bold">Horário de funcionamento</h2>
-          </div>
-          <div className="space-y-4">
-            <Field
-              label="Abre em (HH:MM)"
-              value={formData.opens_at ?? "10:00"}
-              onChange={v => setFormData({ ...formData, opens_at: v })}
-              type="time"
-            />
-            <Field
-              label="Fecha em (HH:MM)"
-              value={formData.closes_at ?? "22:00"}
-              onChange={v => setFormData({ ...formData, closes_at: v })}
-              type="time"
-            />
-            <label className="flex items-center gap-3">
-              <input
-                type="checkbox"
-                checked={formData.closed_today !== "false"}
-                onChange={e => setFormData({ ...formData, closed_today: e.target.checked ? "true" : "false" })}
-                className="h-4 w-4 rounded border-border"
-              />
-              <span className="text-sm">Fechado hoje</span>
-            </label>
-          </div>
-        </div>
+        <label className="flex flex-col gap-2">
+          <span className="text-sm font-semibold">Número (com DDD)</span>
+          <input
+            value={phone}
+            onChange={e => setPhone(maskPhone(e.target.value))}
+            placeholder="(11) 9 9999-9999"
+            className="h-11 rounded-lg border border-border bg-surface px-3 text-sm outline-none focus:border-brand"
+          />
+          {previewWa && (
+            <p className="text-xs text-muted-foreground">Preview: <span className="text-brand">wa.me/55{previewWa}</span></p>
+          )}
+        </label>
       </div>
 
-      {/* Danger Zone */}
-      <div className="rounded-2xl border border-destructive/30 bg-destructive/10 p-6">
-        <div className="flex items-center gap-2">
-          <AlertTriangle className="h-5 w-5 text-destructive" />
-          <h2 className="font-display text-lg font-bold text-destructive">Zona de perigo</h2>
+      <div className="rounded-2xl border border-border bg-card p-6">
+        <div className="mb-4 flex items-center gap-2">
+          <Clock className="h-5 w-5 text-flame" />
+          <h2 className="font-display text-lg font-bold">Horário de funcionamento</h2>
         </div>
-        <p className="mt-2 text-sm text-muted-foreground">Ações que não podem ser desfeitas</p>
-        <button className="mt-4 rounded-lg border border-destructive px-4 py-2 text-sm font-medium text-destructive hover:bg-destructive/10 transition">
-          Limpar cache
-        </button>
+
+        <label className="mb-4 flex items-center gap-3">
+          <input
+            type="checkbox"
+            checked={cfg.enabled}
+            onChange={e => setCfg({ ...cfg, enabled: e.target.checked })}
+            className="h-4 w-4 rounded border-border"
+          />
+          <span className="text-sm font-semibold">Ativar controle de horário (bloqueia pedidos fora do horário)</span>
+        </label>
+
+        <div className="space-y-2">
+          {DAYS.map((name, i) => {
+            const day = cfg.schedule[String(i)] ?? { open: false };
+            return (
+              <div key={i} className="grid grid-cols-[100px_80px_1fr_1fr] items-center gap-3 rounded-lg bg-surface p-3">
+                <span className="text-sm font-medium">{name}</span>
+                <label className="flex items-center gap-2 text-xs">
+                  <input
+                    type="checkbox"
+                    checked={day.open}
+                    onChange={e => setCfg({ ...cfg, schedule: { ...cfg.schedule, [String(i)]: { ...day, open: e.target.checked } } })}
+                  />
+                  <span>{day.open ? "Aberto" : "Fechado"}</span>
+                </label>
+                {day.open ? (
+                  <>
+                    <input
+                      type="time"
+                      value={day.from ?? "11:00"}
+                      onChange={e => setCfg({ ...cfg, schedule: { ...cfg.schedule, [String(i)]: { ...day, from: e.target.value } } })}
+                      className="h-9 rounded-md border border-border bg-card px-2 text-sm"
+                    />
+                    <input
+                      type="time"
+                      value={day.to ?? "22:00"}
+                      onChange={e => setCfg({ ...cfg, schedule: { ...cfg.schedule, [String(i)]: { ...day, to: e.target.value } } })}
+                      className="h-9 rounded-md border border-border bg-card px-2 text-sm"
+                    />
+                  </>
+                ) : <div className="col-span-2 text-xs text-muted-foreground">—</div>}
+              </div>
+            );
+          })}
+        </div>
+
+        <label className="mt-4 flex flex-col gap-2">
+          <span className="text-sm font-semibold">Mensagem quando fechado</span>
+          <input
+            value={cfg.closed_message ?? ""}
+            onChange={e => setCfg({ ...cfg, closed_message: e.target.value })}
+            placeholder="Voltamos amanhã às 11h!"
+            className="h-11 rounded-lg border border-border bg-surface px-3 text-sm outline-none focus:border-brand"
+          />
+        </label>
       </div>
 
-      {/* Save Button */}
-      <div className="flex justify-end gap-3 pt-4">
-        <button
-          onClick={() => setFormData(settings)}
-          className="h-11 rounded-xl border border-border px-6 font-semibold hover:bg-surface"
-        >
-          Cancelar
-        </button>
+      <div className="flex justify-end">
         <button
           onClick={save}
-          disabled={loading}
+          disabled={saving}
           className="flex h-11 items-center gap-2 rounded-xl gradient-flame px-6 font-semibold text-white glow-brand disabled:opacity-50"
         >
-          <Save className="h-4 w-4" /> {loading ? "Salvando..." : "Salvar"}
+          <Save className="h-4 w-4" /> {saving ? "Salvando..." : "Salvar"}
         </button>
       </div>
     </div>
-  );
-}
-
-function Field({
-  label,
-  value,
-  onChange,
-  type = "text",
-  placeholder,
-  as,
-  options,
-  step,
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-  type?: string;
-  placeholder?: string;
-  as?: "select";
-  options?: string[];
-  step?: string;
-}) {
-  return (
-    <label className="flex flex-col gap-2">
-      <span className="text-sm font-semibold">{label}</span>
-      {as === "select" ? (
-        <select
-          value={value}
-          onChange={e => onChange(e.target.value)}
-          className="h-11 rounded-lg border border-border bg-surface px-3 text-sm outline-none focus:border-brand"
-        >
-          {(options ?? []).map(opt => (
-            <option key={opt} value={opt}>
-              {opt}
-            </option>
-          ))}
-        </select>
-      ) : (
-        <input
-          type={type}
-          value={value}
-          onChange={e => onChange(e.target.value)}
-          placeholder={placeholder}
-          step={step}
-          className="h-11 rounded-lg border border-border bg-surface px-3 text-sm outline-none focus:border-brand"
-        />
-      )}
-    </label>
   );
 }

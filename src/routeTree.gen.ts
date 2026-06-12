@@ -36,6 +36,7 @@ import { Route as AuthenticatedAdminConfiguracoesRouteImport } from './routes/_a
 import { Route as AuthenticatedAdminClientesRouteImport } from './routes/_authenticated/admin/clientes'
 import { Route as AuthenticatedAdminCategoriasRouteImport } from './routes/_authenticated/admin/categorias'
 import { Route as AuthenticatedAdminBannersRouteImport } from './routes/_authenticated/admin/banners'
+import { Route as AuthenticatedAdminAvaliacoesRouteImport } from './routes/_authenticated/admin/avaliacoes'
 import { Route as AuthenticatedAdminPaginasTrabalheConoscoRouteImport } from './routes/_authenticated/admin/paginas.trabalhe-conosco'
 import { Route as AuthenticatedAdminPaginasQuemSomosRouteImport } from './routes/_authenticated/admin/paginas.quem-somos'
 import { Route as AuthenticatedAdminPaginasHomeRouteImport } from './routes/_authenticated/admin/paginas.home'
@@ -185,6 +186,12 @@ const AuthenticatedAdminBannersRoute =
     path: '/banners',
     getParentRoute: () => AuthenticatedAdminRouteRoute,
   } as any)
+const AuthenticatedAdminAvaliacoesRoute =
+  AuthenticatedAdminAvaliacoesRouteImport.update({
+    id: '/avaliacoes',
+    path: '/avaliacoes',
+    getParentRoute: () => AuthenticatedAdminRouteRoute,
+  } as any)
 const AuthenticatedAdminPaginasTrabalheConoscoRoute =
   AuthenticatedAdminPaginasTrabalheConoscoRouteImport.update({
     id: '/paginas/trabalhe-conosco',
@@ -238,6 +245,7 @@ export interface FileRoutesByFullPath {
   '/admin/unauthorized': typeof AdminUnauthorizedRoute
   '/pedido/$orderNumber': typeof PedidoOrderNumberRoute
   '/produto/$id': typeof ProdutoIdRoute
+  '/admin/avaliacoes': typeof AuthenticatedAdminAvaliacoesRoute
   '/admin/banners': typeof AuthenticatedAdminBannersRoute
   '/admin/categorias': typeof AuthenticatedAdminCategoriasRoute
   '/admin/clientes': typeof AuthenticatedAdminClientesRoute
@@ -271,6 +279,7 @@ export interface FileRoutesByTo {
   '/admin/unauthorized': typeof AdminUnauthorizedRoute
   '/pedido/$orderNumber': typeof PedidoOrderNumberRoute
   '/produto/$id': typeof ProdutoIdRoute
+  '/admin/avaliacoes': typeof AuthenticatedAdminAvaliacoesRoute
   '/admin/banners': typeof AuthenticatedAdminBannersRoute
   '/admin/categorias': typeof AuthenticatedAdminCategoriasRoute
   '/admin/clientes': typeof AuthenticatedAdminClientesRoute
@@ -307,6 +316,7 @@ export interface FileRoutesById {
   '/admin/unauthorized': typeof AdminUnauthorizedRoute
   '/pedido/$orderNumber': typeof PedidoOrderNumberRoute
   '/produto/$id': typeof ProdutoIdRoute
+  '/_authenticated/admin/avaliacoes': typeof AuthenticatedAdminAvaliacoesRoute
   '/_authenticated/admin/banners': typeof AuthenticatedAdminBannersRoute
   '/_authenticated/admin/categorias': typeof AuthenticatedAdminCategoriasRoute
   '/_authenticated/admin/clientes': typeof AuthenticatedAdminClientesRoute
@@ -343,6 +353,7 @@ export interface FileRouteTypes {
     | '/admin/unauthorized'
     | '/pedido/$orderNumber'
     | '/produto/$id'
+    | '/admin/avaliacoes'
     | '/admin/banners'
     | '/admin/categorias'
     | '/admin/clientes'
@@ -376,6 +387,7 @@ export interface FileRouteTypes {
     | '/admin/unauthorized'
     | '/pedido/$orderNumber'
     | '/produto/$id'
+    | '/admin/avaliacoes'
     | '/admin/banners'
     | '/admin/categorias'
     | '/admin/clientes'
@@ -411,6 +423,7 @@ export interface FileRouteTypes {
     | '/admin/unauthorized'
     | '/pedido/$orderNumber'
     | '/produto/$id'
+    | '/_authenticated/admin/avaliacoes'
     | '/_authenticated/admin/banners'
     | '/_authenticated/admin/categorias'
     | '/_authenticated/admin/clientes'
@@ -638,6 +651,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminBannersRouteImport
       parentRoute: typeof AuthenticatedAdminRouteRoute
     }
+    '/_authenticated/admin/avaliacoes': {
+      id: '/_authenticated/admin/avaliacoes'
+      path: '/avaliacoes'
+      fullPath: '/admin/avaliacoes'
+      preLoaderRoute: typeof AuthenticatedAdminAvaliacoesRouteImport
+      parentRoute: typeof AuthenticatedAdminRouteRoute
+    }
     '/_authenticated/admin/paginas/trabalhe-conosco': {
       id: '/_authenticated/admin/paginas/trabalhe-conosco'
       path: '/paginas/trabalhe-conosco'
@@ -684,6 +704,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedAdminRouteRouteChildren {
+  AuthenticatedAdminAvaliacoesRoute: typeof AuthenticatedAdminAvaliacoesRoute
   AuthenticatedAdminBannersRoute: typeof AuthenticatedAdminBannersRoute
   AuthenticatedAdminCategoriasRoute: typeof AuthenticatedAdminCategoriasRoute
   AuthenticatedAdminClientesRoute: typeof AuthenticatedAdminClientesRoute
@@ -705,6 +726,7 @@ interface AuthenticatedAdminRouteRouteChildren {
 
 const AuthenticatedAdminRouteRouteChildren: AuthenticatedAdminRouteRouteChildren =
   {
+    AuthenticatedAdminAvaliacoesRoute: AuthenticatedAdminAvaliacoesRoute,
     AuthenticatedAdminBannersRoute: AuthenticatedAdminBannersRoute,
     AuthenticatedAdminCategoriasRoute: AuthenticatedAdminCategoriasRoute,
     AuthenticatedAdminClientesRoute: AuthenticatedAdminClientesRoute,
