@@ -394,6 +394,7 @@ export type Database = {
       order_items: {
         Row: {
           id: string
+          notes: string | null
           order_id: string
           product_id: string | null
           product_name: string
@@ -403,6 +404,7 @@ export type Database = {
         }
         Insert: {
           id?: string
+          notes?: string | null
           order_id: string
           product_id?: string | null
           product_name: string
@@ -412,6 +414,7 @@ export type Database = {
         }
         Update: {
           id?: string
+          notes?: string | null
           order_id?: string
           product_id?: string | null
           product_name?: string
@@ -432,6 +435,41 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      order_reviews: {
+        Row: {
+          comment: string | null
+          created_at: string
+          id: string
+          order_id: string
+          rating: number
+          user_id: string
+        }
+        Insert: {
+          comment?: string | null
+          created_at?: string
+          id?: string
+          order_id: string
+          rating: number
+          user_id: string
+        }
+        Update: {
+          comment?: string | null
+          created_at?: string
+          id?: string
+          order_id?: string
+          rating?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_reviews_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
             referencedColumns: ["id"]
           },
         ]

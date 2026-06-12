@@ -34,7 +34,7 @@ export function CartDrawer({ open, onClose }: { open: boolean; onClose: () => vo
             </div>
           ) : (
             <ul className="space-y-3">
-              {items.map(({ product, qty }) => (
+              {items.map(({ product, qty, notes }) => (
                 <li key={product.id} className="flex gap-3 rounded-xl border border-border bg-card p-3">
                   <div className="grid h-16 w-16 shrink-0 place-items-center rounded-lg bg-surface text-3xl">
                     {product.emoji}
@@ -46,6 +46,7 @@ export function CartDrawer({ open, onClose }: { open: boolean; onClose: () => vo
                         <Trash2 className="h-4 w-4" />
                       </button>
                     </div>
+                    {notes ? <p className="mt-0.5 text-xs italic text-muted-foreground">“{notes}”</p> : null}
                     <span className="text-sm font-bold text-gradient-flame">{formatBRL(product.price * qty)}</span>
                     <div className="mt-2 flex items-center gap-1">
                       <button onClick={() => setQty(product.id, qty - 1)} className="grid h-7 w-7 place-items-center rounded-md border border-border hover:bg-surface"><Minus className="h-3 w-3" /></button>

@@ -2,10 +2,12 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, Clock, Star, Minus, Plus, ShoppingBag } from "lucide-react";
+import { toast } from "sonner";
 import { AppShell } from "@/components/AppShell";
 import { ProductCard } from "@/components/ProductCard";
 import { fetchProductById, fetchProductsByCategoryId } from "@/lib/products";
 import { useCart, formatBRL } from "@/lib/cart-store";
+import { useBusinessHours } from "@/lib/business-hours";
 
 export const Route = createFileRoute("/produto/$id")({
   head: () => ({ meta: [{ title: "Produto — BlazeBurger" }] }),
@@ -15,7 +17,9 @@ export const Route = createFileRoute("/produto/$id")({
 function ProductPage() {
   const { id } = Route.useParams();
   const [qty, setQty] = useState(1);
+  const [notes, setNotes] = useState("");
   const { add } = useCart();
+  const { isOpen } = useBusinessHours();
 
   const { data: product, isLoading } = useQuery({
     queryKey: ["product", id],
@@ -83,15 +87,34 @@ function ProductPage() {
             <span className="font-display text-4xl font-extrabold text-gradient-flame">{formatBRL(product.price)}</span>
           </div>
 
-          <div className="mt-8 flex items-center gap-4">
-            <div className="flex items-center gap-1 rounded-xl border border-border bg-surface p-1">
-              <button onClick={() => setQty(Math.max(1, qty - 1))} className="grid h-10 w-10 place-items-center rounded-lg hover:bg-card"><Minus className="h-4 w-4" /></button>
+          <div className="mt-6">
+            <label className="mb-2 block text-sm font-semibold text-muted-foreground">Personalização / Observações</label>
+            <textarea
+              value={notes}
+              onChange={e => setNotes(e.target.value.slice(0, 150))}
+              placeholder="Ex: sem cebola, ponto bem passado..."
+              rows={2}
+              className="w-full resize-none rounded-xl border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand"
+            />
+            <div className="mt-1 text-right text-xs text-muted-foreground">{notes.length}/150</div>
+          </div>
+
+          <div className="mt-4 flex items-center gap-4">
+            <div className="flex items-center gap-1 rounded-full border border-border bg-surface p-1">
+              <button onClick={() => setQty(Math.max(1, qty - 1))} className="grid h-10 w-10 place-items-center rounded-full hover:bg-card"><Minus className="h-4 w-4" /></button>
               <span className="w-10 text-center font-display text-lg font-bold">{qty}</span>
-              <button onClick={() => setQty(qty + 1)} className="grid h-10 w-10 place-items-center rounded-lg hover:bg-card"><Plus className="h-4 w-4" /></button>
+              <button onClick={() => setQty(Math.min(20, qty + 1))} className="grid h-10 w-10 place-items-center rounded-full hover:bg-card"><Plus className="h-4 w-4" /></button>
             </div>
             <button
-              onClick={() => add(product, qty)}
-              className="flex h-12 flex-1 items-center justify-center gap-2 rounded-xl gradient-flame font-display font-semibold text-white transition hover:scale-[1.02] glow-brand"
+              onClick={() => {
+                if (!isOpen) { toast.error("Estamos fechados agora"); return; }
+                add(product, qty, notes.trim() || undefined);
+                toast.success(`${qty}x ${product.name} adicionado`);
+                setNotes("");
+              }}
+              disabled={!isOpen}
+              title={!isOpen ? "Estamos fechados agora" : undefined}
+              className="flex h-12 flex-1 items-center justify-center gap-2 rounded-xl gradient-flame font-display font-semibold text-white transition hover:scale-[1.02] glow-brand disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100"
             >
               <ShoppingBag className="h-5 w-5" /> Adicionar — {formatBRL(product.price * qty)}
             </button>
