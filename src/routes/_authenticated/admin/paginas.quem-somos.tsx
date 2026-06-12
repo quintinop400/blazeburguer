@@ -158,8 +158,8 @@ function QuemSomosAdmin() {
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Eyebrow"><input className={inputCls} value={c.historia.eyebrow}
             onChange={e => setC({ ...c, historia: { ...c.historia, eyebrow: e.target.value } })} /></Field>
-          <Field label="URL da imagem"><input className={inputCls} value={c.historia.image_url}
-            onChange={e => setC({ ...c, historia: { ...c.historia, image_url: e.target.value } })} /></Field>
+          <AdminImageField label="Imagem" value={c.historia.image_url}
+            onChange={(v) => setC({ ...c, historia: { ...c.historia, image_url: v } })} />
         </div>
         <Field label="Título"><input className={inputCls} value={c.historia.title}
           onChange={e => setC({ ...c, historia: { ...c.historia, title: e.target.value } })} /></Field>
