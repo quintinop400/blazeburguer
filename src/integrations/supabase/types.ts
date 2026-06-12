@@ -477,6 +477,7 @@ export type Database = {
       orders: {
         Row: {
           coupon_code: string | null
+          coupon_id: string | null
           created_at: string
           customer_name: string
           customer_phone: string
@@ -495,6 +496,7 @@ export type Database = {
         }
         Insert: {
           coupon_code?: string | null
+          coupon_id?: string | null
           created_at?: string
           customer_name: string
           customer_phone: string
@@ -513,6 +515,7 @@ export type Database = {
         }
         Update: {
           coupon_code?: string | null
+          coupon_id?: string | null
           created_at?: string
           customer_name?: string
           customer_phone?: string
@@ -529,7 +532,15 @@ export type Database = {
           updated_at?: string
           user_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "orders_coupon_id_fkey"
+            columns: ["coupon_id"]
+            isOneToOne: false
+            referencedRelation: "coupons"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       page_content: {
         Row: {
@@ -700,6 +711,30 @@ export type Database = {
           order_count: number
           total_spent: number
           user_id: string
+        }[]
+      }
+      get_revenue_by_day: {
+        Args: { days_back?: number }
+        Returns: {
+          day: string
+          order_count: number
+          revenue: number
+        }[]
+      }
+      get_status_distribution_today: {
+        Args: never
+        Returns: {
+          count: number
+          status: string
+        }[]
+      }
+      get_today_metrics: { Args: never; Returns: Json }
+      get_top_products: {
+        Args: { days_back?: number; limit_count?: number }
+        Returns: {
+          product_name: string
+          total_quantity: number
+          total_revenue: number
         }[]
       }
       has_role: {
