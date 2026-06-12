@@ -19,6 +19,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ProdutoIdRouteImport } from './routes/produto.$id'
+import { Route as PedidoOrderNumberRouteImport } from './routes/pedido.$orderNumber'
 import { Route as AdminUnauthorizedRouteImport } from './routes/admin/unauthorized'
 import { Route as AdminRegisterRouteImport } from './routes/admin/register'
 import { Route as AdminLoginRouteImport } from './routes/admin/login'
@@ -89,6 +90,11 @@ const IndexRoute = IndexRouteImport.update({
 const ProdutoIdRoute = ProdutoIdRouteImport.update({
   id: '/produto/$id',
   path: '/produto/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PedidoOrderNumberRoute = PedidoOrderNumberRouteImport.update({
+  id: '/pedido/$orderNumber',
+  path: '/pedido/$orderNumber',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminUnauthorizedRoute = AdminUnauthorizedRouteImport.update({
@@ -230,6 +236,7 @@ export interface FileRoutesByFullPath {
   '/admin/login': typeof AdminLoginRoute
   '/admin/register': typeof AdminRegisterRoute
   '/admin/unauthorized': typeof AdminUnauthorizedRoute
+  '/pedido/$orderNumber': typeof PedidoOrderNumberRoute
   '/produto/$id': typeof ProdutoIdRoute
   '/admin/banners': typeof AuthenticatedAdminBannersRoute
   '/admin/categorias': typeof AuthenticatedAdminCategoriasRoute
@@ -262,6 +269,7 @@ export interface FileRoutesByTo {
   '/admin/login': typeof AdminLoginRoute
   '/admin/register': typeof AdminRegisterRoute
   '/admin/unauthorized': typeof AdminUnauthorizedRoute
+  '/pedido/$orderNumber': typeof PedidoOrderNumberRoute
   '/produto/$id': typeof ProdutoIdRoute
   '/admin/banners': typeof AuthenticatedAdminBannersRoute
   '/admin/categorias': typeof AuthenticatedAdminCategoriasRoute
@@ -297,6 +305,7 @@ export interface FileRoutesById {
   '/admin/login': typeof AdminLoginRoute
   '/admin/register': typeof AdminRegisterRoute
   '/admin/unauthorized': typeof AdminUnauthorizedRoute
+  '/pedido/$orderNumber': typeof PedidoOrderNumberRoute
   '/produto/$id': typeof ProdutoIdRoute
   '/_authenticated/admin/banners': typeof AuthenticatedAdminBannersRoute
   '/_authenticated/admin/categorias': typeof AuthenticatedAdminCategoriasRoute
@@ -332,6 +341,7 @@ export interface FileRouteTypes {
     | '/admin/login'
     | '/admin/register'
     | '/admin/unauthorized'
+    | '/pedido/$orderNumber'
     | '/produto/$id'
     | '/admin/banners'
     | '/admin/categorias'
@@ -364,6 +374,7 @@ export interface FileRouteTypes {
     | '/admin/login'
     | '/admin/register'
     | '/admin/unauthorized'
+    | '/pedido/$orderNumber'
     | '/produto/$id'
     | '/admin/banners'
     | '/admin/categorias'
@@ -398,6 +409,7 @@ export interface FileRouteTypes {
     | '/admin/login'
     | '/admin/register'
     | '/admin/unauthorized'
+    | '/pedido/$orderNumber'
     | '/produto/$id'
     | '/_authenticated/admin/banners'
     | '/_authenticated/admin/categorias'
@@ -431,6 +443,7 @@ export interface RootRouteChildren {
   AdminLoginRoute: typeof AdminLoginRoute
   AdminRegisterRoute: typeof AdminRegisterRoute
   AdminUnauthorizedRoute: typeof AdminUnauthorizedRoute
+  PedidoOrderNumberRoute: typeof PedidoOrderNumberRoute
   ProdutoIdRoute: typeof ProdutoIdRoute
 }
 
@@ -504,6 +517,13 @@ declare module '@tanstack/react-router' {
       path: '/produto/$id'
       fullPath: '/produto/$id'
       preLoaderRoute: typeof ProdutoIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/pedido/$orderNumber': {
+      id: '/pedido/$orderNumber'
+      path: '/pedido/$orderNumber'
+      fullPath: '/pedido/$orderNumber'
+      preLoaderRoute: typeof PedidoOrderNumberRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/unauthorized': {
@@ -738,6 +758,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminLoginRoute: AdminLoginRoute,
   AdminRegisterRoute: AdminRegisterRoute,
   AdminUnauthorizedRoute: AdminUnauthorizedRoute,
+  PedidoOrderNumberRoute: PedidoOrderNumberRoute,
   ProdutoIdRoute: ProdutoIdRoute,
 }
 export const routeTree = rootRouteImport
