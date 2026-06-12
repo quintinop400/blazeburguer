@@ -324,9 +324,11 @@ function QuemSomosAdmin() {
         </div>
         <div className="space-y-2">
           {c.galeria.images.map((url, i) => (
-            <div key={i} className="flex gap-2">
-              <input className={inputCls} placeholder="URL da imagem" value={url}
-                onChange={e => setC({ ...c, galeria: { ...c.galeria, images: c.galeria.images.map((x, idx) => idx === i ? e.target.value : x) } })} />
+            <div key={i} className="flex items-end gap-2">
+              <div className="flex-1">
+                <AdminImageField label={`Foto #${i + 1}`} value={url}
+                  onChange={(v) => setC({ ...c, galeria: { ...c.galeria, images: c.galeria.images.map((x, idx) => idx === i ? v : x) } })} />
+              </div>
               <button onClick={() => setC({ ...c, galeria: { ...c.galeria, images: removeAt(c.galeria.images, i) } })}
                 className="grid h-11 w-11 shrink-0 place-items-center rounded-lg border border-border text-destructive hover:bg-destructive hover:text-destructive-foreground">
                 <Trash2 className="h-4 w-4" />
