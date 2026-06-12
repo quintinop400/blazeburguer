@@ -26,6 +26,7 @@ type HomeContent = {
   hero_subtitle: string;
   hero_cta: string;
   hero_cta_link: string;
+  hero_image_url: string;
 };
 
 function Home() {
