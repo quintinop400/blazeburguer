@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { usePageEditor } from "@/lib/page-content";
-import { AdminInput, AdminSection, SaveBar } from "@/components/admin/PageFormBits";
+import { AdminInput, AdminSection, AdminImageField, SaveBar } from "@/components/admin/PageFormBits";
 
 export const Route = createFileRoute("/_authenticated/admin/paginas/home")({
   component: HomeAdmin,
@@ -12,6 +12,7 @@ type HomeContent = {
   hero_subtitle: string;
   hero_cta: string;
   hero_cta_link: string;
+  hero_image_url: string;
 };
 
 function HomeAdmin() {
@@ -28,6 +29,7 @@ function HomeAdmin() {
         <AdminInput label="Subtítulo" value={value.hero_subtitle} onChange={(v) => setValue({ ...value, hero_subtitle: v })} textarea className="sm:col-span-2" />
         <AdminInput label="Texto do botão" value={value.hero_cta} onChange={(v) => setValue({ ...value, hero_cta: v })} />
         <AdminInput label="Link do botão" value={value.hero_cta_link} onChange={(v) => setValue({ ...value, hero_cta_link: v })} placeholder="/menu" />
+        <AdminImageField label="Imagem do hero" value={value.hero_image_url} onChange={(v) => setValue({ ...value, hero_image_url: v })} className="sm:col-span-2" />
       </AdminSection>
       <SaveBar save={save} saving={saving} />
     </div>
