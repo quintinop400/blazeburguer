@@ -145,7 +145,7 @@ function Checkout() {
           total,
           status: "received",
           coupon_code: coupon?.code ?? null,
-          discount: discount || null,
+          discount: discount,
         })
         .select("id, order_number")
         .single();
@@ -164,7 +164,9 @@ function Checkout() {
       if (itemsErr) throw itemsErr;
 
       if (coupon) {
-        await supabase.from("coupons").update({ used_count: (await supabase.from("coupons").select("used_count").eq("id", coupon.id).single()).data?.used_count + 1 || 1 }).eq("id", coupon.id);
+        const { data: c } = await supabase.from("coupons").select("used_count").eq("id", coupon.id).maybeSingle();
+        const next = (c?.used_count ?? 0) + 1;
+        await supabase.from("coupons").update({ used_count: next }).eq("id", coupon.id);
       }
 
       // sugerir salvar endereço manual
