@@ -270,8 +270,10 @@ function QuemSomosAdmin() {
                 <input className={inputCls} placeholder="Cargo" value={m.role}
                   onChange={e => setC({ ...c, equipe: { ...c.equipe, members: updateArr(c.equipe.members, i, { role: e.target.value }) } })} />
               </div>
-              <input className={`${inputCls} mt-2`} placeholder="URL da foto" value={m.img}
-                onChange={e => setC({ ...c, equipe: { ...c.equipe, members: updateArr(c.equipe.members, i, { img: e.target.value }) } })} />
+              <div className="mt-2">
+                <AdminImageField label="Foto do membro" value={m.img}
+                  onChange={(v) => setC({ ...c, equipe: { ...c.equipe, members: updateArr(c.equipe.members, i, { img: v }) } })} />
+              </div>
               <textarea rows={2} className={`${taCls} mt-2`} placeholder="Descrição" value={m.desc}
                 onChange={e => setC({ ...c, equipe: { ...c.equipe, members: updateArr(c.equipe.members, i, { desc: e.target.value }) } })} />
             </div>
