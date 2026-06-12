@@ -9,6 +9,7 @@ import {
   mergeQuemSomos,
   type QuemSomosContent,
 } from "@/lib/quem-somos-content";
+import { AdminImageField } from "@/components/admin/PageFormBits";
 
 export const Route = createFileRoute("/_authenticated/admin/paginas/quem-somos")({
   component: QuemSomosAdmin,
