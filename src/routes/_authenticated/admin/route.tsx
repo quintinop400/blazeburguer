@@ -1,5 +1,5 @@
 import { createFileRoute, Outlet, Link, redirect, useNavigate, useRouterState } from "@tanstack/react-router";
-import { LayoutDashboard, Package, ListOrdered, FolderTree, LogOut, Flame, Users, Image, Megaphone, Ticket, CreditCard, Settings, HelpCircle, FileText } from "lucide-react";
+import { LayoutDashboard, Package, ListOrdered, FolderTree, LogOut, Flame, Users, Image, Megaphone, Ticket, CreditCard, Settings, HelpCircle, FileText, Star } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { signOut } from "@/hooks/useAuth";
 
@@ -28,6 +28,7 @@ const NAV: NavItem[] = [
   { to: "/admin/midia", label: "Mídia", icon: Image },
   { to: "/admin/pagamentos", label: "Pagamentos", icon: CreditCard },
   { to: "/admin/cupons", label: "Cupons", icon: Ticket },
+  { to: "/admin/avaliacoes", label: "Avaliações", icon: Star },
   { to: "/admin/clientes", label: "Clientes", icon: Users },
   { to: "/admin/paginas/home", label: "Pág. Home", icon: FileText },
   { to: "/admin/paginas/quem-somos", label: "Pág. Quem Somos", icon: FileText },
