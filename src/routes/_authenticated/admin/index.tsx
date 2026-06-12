@@ -1,244 +1,275 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { DollarSign, ShoppingBag, Users, Package, TrendingUp, AlertTriangle, Activity, Clock, Award } from "lucide-react";
-import { LineChart, Line, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid, PieChart, Pie, Cell, BarChart, Bar } from "recharts";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useEffect } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { DollarSign, ShoppingBag, Users, TrendingUp, Activity, XCircle, Trophy, Clock } from "lucide-react";
+import { ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid, PieChart, Pie, Cell, BarChart, Bar, Legend } from "recharts";
 import { supabase } from "@/integrations/supabase/client";
 import { formatBRL } from "@/lib/cart-store";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export const Route = createFileRoute("/_authenticated/admin/")({
   component: Dashboard,
 });
 
+const STATUS_COLORS: Record<string, string> = {
+  received: "#fbbf24",
+  confirmed: "#818cf8",
+  preparing: "#fb923c",
+  ready: "#f59e0b",
+  out_for_delivery: "#a78bfa",
+  delivered: "#22c55e",
+  cancelled: "#ef4444",
+};
+const STATUS_LABELS: Record<string, string> = {
+  received: "Recebido", confirmed: "Confirmado", preparing: "Em preparo",
+  ready: "Pronto", out_for_delivery: "Em entrega", delivered: "Entregue", cancelled: "Cancelado",
+};
+
 function Dashboard() {
-  const [timeRange, setTimeRange] = useState<"7d" | "30d" | "90d">("7d");
+  const qc = useQueryClient();
 
-  const daysMap = { "7d": 6, "30d": 29, "90d": 89 };
-  const rangeLabel = { "7d": "últimos 7 dias", "30d": "últimos 30 dias", "90d": "últimos 90 dias" };
+  useEffect(() => {
+    const ch = supabase
+      .channel("dashboard-live")
+      .on("postgres_changes", { event: "*", schema: "public", table: "orders" }, () => {
+        qc.invalidateQueries({ queryKey: ["dash"] });
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [qc]);
 
-  const stats = useQuery({
-    queryKey: ["admin", "stats", timeRange],
+  // 1) Vendas 7 dias
+  const sales7d = useQuery({
+    queryKey: ["dash", "sales7d"],
+    queryFn: async () => {
+      const start = new Date(); start.setHours(0, 0, 0, 0); start.setDate(start.getDate() - 6);
+      const { data } = await supabase
+        .from("orders").select("created_at,total,status")
+        .gte("created_at", start.toISOString())
+        .neq("status", "cancelled");
+      const days: { day: string; total: number }[] = [];
+      const names = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+      const map = new Map<string, number>();
+      for (let i = 0; i < 7; i++) {
+        const d = new Date(start); d.setDate(d.getDate() + i);
+        map.set(d.toISOString().slice(0, 10), 0);
+      }
+      (data ?? []).forEach(o => {
+        const k = o.created_at.slice(0, 10);
+        map.set(k, (map.get(k) ?? 0) + Number(o.total));
+      });
+      Array.from(map.entries()).forEach(([d, total]) => {
+        days.push({ day: names[new Date(d).getDay()], total: Number(total.toFixed(2)) });
+      });
+      return days;
+    },
+  });
+
+  // 2) Status hoje
+  const statusToday = useQuery({
+    queryKey: ["dash", "statusToday"],
+    queryFn: async () => {
+      const start = new Date(); start.setHours(0, 0, 0, 0);
+      const { data } = await supabase.from("orders").select("status").gte("created_at", start.toISOString());
+      const counts = new Map<string, number>();
+      (data ?? []).forEach(o => counts.set(o.status, (counts.get(o.status) ?? 0) + 1));
+      return Array.from(counts.entries()).map(([status, value]) => ({
+        name: STATUS_LABELS[status] ?? status, value, color: STATUS_COLORS[status] ?? "#888",
+      }));
+    },
+  });
+
+  // 3) Top 5 produtos (últimos 30 dias)
+  const topProducts = useQuery({
+    queryKey: ["dash", "top5"],
+    queryFn: async () => {
+      const start = new Date(); start.setDate(start.getDate() - 30);
+      const { data: recentOrders } = await supabase
+        .from("orders").select("id").gte("created_at", start.toISOString()).neq("status", "cancelled");
+      const ids = (recentOrders ?? []).map(o => o.id);
+      if (ids.length === 0) return [];
+      const { data } = await supabase.from("order_items").select("product_name,quantity").in("order_id", ids);
+      const map = new Map<string, number>();
+      (data ?? []).forEach(it => map.set(it.product_name, (map.get(it.product_name) ?? 0) + Number(it.quantity)));
+      return Array.from(map.entries()).map(([name, qty]) => ({ name, qty }))
+        .sort((a, b) => b.qty - a.qty).slice(0, 5);
+    },
+  });
+
+  // 4) Métricas
+  const metrics = useQuery({
+    queryKey: ["dash", "metrics"],
     queryFn: async () => {
       const today = new Date(); today.setHours(0, 0, 0, 0);
       const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
-      const rangeStart = new Date(today); rangeStart.setDate(rangeStart.getDate() - daysMap[timeRange]); rangeStart.setHours(0, 0, 0, 0);
+      const weekStart = new Date(today); weekStart.setDate(weekStart.getDate() - 7);
 
-      const [todayOrders, monthOrders, rangeOrders, totalOrders, lowStock, customers, topProducts, recentOrders] = await Promise.all([
-        supabase.from("orders").select("total").gte("created_at", today.toISOString()).neq("status", "cancelled"),
-        supabase.from("orders").select("total").gte("created_at", monthStart.toISOString()).neq("status", "cancelled"),
-        supabase.from("orders").select("created_at,total,status").gte("created_at", rangeStart.toISOString()).neq("status", "cancelled"),
-        supabase.from("orders").select("id", { count: "exact", head: true }),
-        supabase.from("products").select("id,name,stock").lte("stock", 10).eq("is_active", true).order("stock"),
+      const [todayOrders, monthOrders, weekOrders, customers] = await Promise.all([
+        supabase.from("orders").select("total,status").gte("created_at", today.toISOString()),
+        supabase.from("orders").select("id", { count: "exact", head: true }).gte("created_at", monthStart.toISOString()),
+        supabase.from("orders").select("status").gte("created_at", weekStart.toISOString()),
         supabase.from("profiles").select("id", { count: "exact", head: true }),
-        supabase.from("order_items").select("product_id,quantity").order("quantity", { ascending: false }).limit(5),
-        supabase.from("orders").select("created_at,total,status,customer_name").gte("created_at", rangeStart.toISOString()).order("created_at", { ascending: false }).limit(10),
       ]);
-
-      const sumToday = (todayOrders.data ?? []).reduce((s, o) => s + Number(o.total), 0);
-      const sumMonth = (monthOrders.data ?? []).reduce((s, o) => s + Number(o.total), 0);
-
-      // chart data by day
-      const byDay = new Map<string, number>();
-      const dayCount = daysMap[timeRange] + 1;
-      for (let i = 0; i < dayCount; i++) {
-        const d = new Date(rangeStart); d.setDate(d.getDate() + i);
-        byDay.set(d.toISOString().slice(0, 10), 0);
-      }
-      for (const o of rangeOrders.data ?? []) {
-        if (o.status === "cancelled") continue;
-        const k = o.created_at.slice(0, 10);
-        byDay.set(k, (byDay.get(k) ?? 0) + Number(o.total));
-      }
-      const chartData = Array.from(byDay.entries()).map(([d, v]) => ({
-        day: new Date(d).toLocaleDateString("pt-BR", { weekday: "short" }),
-        date: d,
-        total: Number(v.toFixed(2)),
-      }));
-
-      // status distribution
-      const statusCounts = new Map<string, number>();
-      const statusColors: Record<string, string> = {
-        received: "oklch(0.62 0.22 27)",
-        confirmed: "oklch(0.5 0.15 280)",
-        preparing: "oklch(0.72 0.2 50)",
-        ready: "oklch(0.75 0.18 60)",
-        out_for_delivery: "oklch(0.65 0.18 300)",
-        delivered: "oklch(0.65 0.15 140)",
-        cancelled: "oklch(0.5 0.1 10)",
-      };
-      for (const o of rangeOrders.data ?? []) {
-        statusCounts.set(o.status, (statusCounts.get(o.status) ?? 0) + 1);
-      }
-      const statusData = Array.from(statusCounts.entries())
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 5)
-        .map(([status, count]) => ({
-          name: status === "received" ? "Recebido" : status === "confirmed" ? "Confirmado" : status === "preparing" ? "Em preparo" : status === "ready" ? "Pronto" : status === "out_for_delivery" ? "Em entrega" : status === "delivered" ? "Entregue" : "Cancelado",
-          value: count,
-          color: statusColors[status] || "oklch(0.7 0.1 0)",
-        }));
-
+      const validToday = (todayOrders.data ?? []).filter(o => o.status !== "cancelled");
+      const sumToday = validToday.reduce((s, o) => s + Number(o.total), 0);
+      const ticket = validToday.length > 0 ? sumToday / validToday.length : 0;
+      const weekAll = (weekOrders.data ?? []).length;
+      const weekCancelled = (weekOrders.data ?? []).filter(o => o.status === "cancelled").length;
+      const cancelRate = weekAll > 0 ? (weekCancelled / weekAll) * 100 : 0;
       return {
-        salesToday: sumToday,
-        salesMonth: sumMonth,
-        ordersToday: (todayOrders.data ?? []).length,
-        totalOrders: totalOrders.count ?? 0,
-        customers: customers.count ?? 0,
-        lowStock: lowStock.data ?? [],
-        chartData,
-        statusData,
-        topProducts: topProducts.data ?? [],
-        recentOrders: recentOrders.data ?? [],
+        ticket, monthOrders: monthOrders.count ?? 0,
+        cancelRate, customers: customers.count ?? 0,
       };
     },
   });
 
-  // realtime refresh
-  useEffect(() => {
-    const ch = supabase
-      .channel("admin-orders")
-      .on("postgres_changes", { event: "*", schema: "public", table: "orders" }, () => stats.refetch())
-      .subscribe();
-    return () => { supabase.removeChannel(ch); };
-  }, [stats]);
+  // 5) Últimos 5 pedidos
+  const recent = useQuery({
+    queryKey: ["dash", "recent5"],
+    queryFn: async () => {
+      const { data } = await supabase.from("orders")
+        .select("id,order_number,customer_name,total,status,created_at")
+        .order("created_at", { ascending: false }).limit(5);
+      return data ?? [];
+    },
+  });
 
-  const s = stats.data;
-  const avgOrder = s && s.ordersToday > 0 ? s.salesToday / s.ordersToday : 0;
+  function timeAgo(iso: string) {
+    const min = Math.max(1, Math.floor((Date.now() - new Date(iso).getTime()) / 60000));
+    if (min < 60) return `${min} min`;
+    if (min < 1440) return `${Math.floor(min / 60)}h`;
+    return `${Math.floor(min / 1440)}d`;
+  }
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
-        <div>
-          <h1 className="font-display text-3xl font-bold">Dashboard</h1>
-          <p className="text-sm text-muted-foreground">Visão geral em tempo real do seu negócio</p>
-        </div>
-        <div className="flex gap-1 rounded-lg border border-border bg-surface p-1">
-          {(["7d", "30d", "90d"] as const).map(r => (
-            <button
-              key={r}
-              onClick={() => setTimeRange(r)}
-              className={`rounded-md px-3 py-1.5 text-xs font-medium transition ${
-                timeRange === r ? "bg-card text-foreground" : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              {r === "7d" ? "7 dias" : r === "30d" ? "30 dias" : "90 dias"}
-            </button>
-          ))}
-        </div>
+      <div>
+        <h1 className="font-display text-3xl font-bold">Dashboard</h1>
+        <p className="text-sm text-muted-foreground">Visão geral em tempo real do negócio</p>
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-        <Card icon={DollarSign} label="Vendas hoje" value={formatBRL(s?.salesToday ?? 0)} accent />
-        <Card icon={TrendingUp} label="Vendas do mês" value={formatBRL(s?.salesMonth ?? 0)} />
-        <Card icon={ShoppingBag} label="Pedidos hoje" value={String(s?.ordersToday ?? 0)} sub={`Ticket: ${formatBRL(avgOrder)}`} />
-        <Card icon={Users} label="Clientes" value={String(s?.customers ?? 0)} />
-        <Card icon={Activity} label="Total de pedidos" value={String(s?.totalOrders ?? 0)} />
+      {/* Card 4: Métricas rápidas */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <Kpi icon={DollarSign} label="Ticket médio (hoje)" value={metrics.isLoading ? "—" : formatBRL(metrics.data?.ticket ?? 0)} accent />
+        <Kpi icon={TrendingUp} label="Pedidos do mês" value={metrics.isLoading ? "—" : String(metrics.data?.monthOrders ?? 0)} />
+        <Kpi icon={XCircle} label="Cancelamento (7d)" value={metrics.isLoading ? "—" : `${(metrics.data?.cancelRate ?? 0).toFixed(1)}%`} />
+        <Kpi icon={Users} label="Total de clientes" value={metrics.isLoading ? "—" : String(metrics.data?.customers ?? 0)} />
       </div>
 
-      {/* Charts Grid */}
       <div className="grid gap-6 lg:grid-cols-3">
-        {/* Main Chart */}
+        {/* Card 1: Faturamento 7 dias */}
         <div className="rounded-2xl border border-border bg-card p-6 lg:col-span-2">
-          <h2 className="mb-4 font-display text-lg font-bold">Vendas {rangeLabel[timeRange]}</h2>
-          <div className="h-80">
-            <ResponsiveContainer>
-              <LineChart data={s?.chartData ?? []}>
-                <defs>
-                  <linearGradient id="lg" x1="0" y1="0" x2="1" y2="0">
-                    <stop offset="0%" stopColor="oklch(0.62 0.22 27)" />
-                    <stop offset="100%" stopColor="oklch(0.72 0.2 50)" />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="oklch(1 0 0 / 0.06)" />
-                <XAxis dataKey="day" tick={{ fill: "oklch(0.7 0.01 25)", fontSize: 12 }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fill: "oklch(0.7 0.01 25)", fontSize: 12 }} axisLine={false} tickLine={false} tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} />
-                <Tooltip contentStyle={{ background: "oklch(0.205 0.007 25)", border: "1px solid oklch(1 0 0 / 0.1)", borderRadius: 12 }} formatter={(v: number) => formatBRL(v)} />
-                <Line type="monotone" dataKey="total" stroke="url(#lg)" strokeWidth={3} dot={{ fill: "oklch(0.72 0.2 50)", r: 4 }} />
-              </LineChart>
-            </ResponsiveContainer>
+          <h2 className="mb-4 font-display text-lg font-bold">Faturamento — últimos 7 dias</h2>
+          <div className="h-72">
+            {sales7d.isLoading ? <Skeleton className="h-full w-full" /> : (
+              <ResponsiveContainer>
+                <BarChart data={sales7d.data ?? []}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="oklch(1 0 0 / 0.06)" />
+                  <XAxis dataKey="day" tick={{ fill: "oklch(0.7 0.01 25)", fontSize: 12 }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fill: "oklch(0.7 0.01 25)", fontSize: 12 }} axisLine={false} tickLine={false} tickFormatter={(v) => `R$${(v / 1000).toFixed(1)}k`} />
+                  <Tooltip contentStyle={{ background: "oklch(0.205 0.007 25)", border: "1px solid oklch(1 0 0 / 0.1)", borderRadius: 12 }} formatter={(v: number) => formatBRL(v)} />
+                  <Bar dataKey="total" fill="#FF4D00" radius={[8, 8, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
           </div>
         </div>
 
-        {/* Status Distribution */}
+        {/* Card 2: Status hoje */}
         <div className="rounded-2xl border border-border bg-card p-6">
-          <h2 className="mb-4 font-display text-lg font-bold">Status dos pedidos</h2>
-          <div className="h-80">
-            <ResponsiveContainer>
-              <PieChart>
-                <Pie data={s?.statusData ?? []} cx="50%" cy="50%" innerRadius={50} outerRadius={100} paddingAngle={2} dataKey="value">
-                  {(s?.statusData ?? []).map((entry, idx) => (
-                    <Cell key={`cell-${idx}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip formatter={(v) => v} />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-          <div className="mt-4 space-y-2 text-xs">
-            {(s?.statusData ?? []).map((item, i) => (
-              <div key={i} className="flex items-center justify-between">
-                <span className="text-muted-foreground">{item.name}</span>
-                <span className="font-semibold">{item.value}</span>
-              </div>
-            ))}
+          <h2 className="mb-4 font-display text-lg font-bold">Status (hoje)</h2>
+          <div className="h-72">
+            {statusToday.isLoading ? <Skeleton className="h-full w-full" /> : (statusToday.data ?? []).length === 0 ? (
+              <div className="grid h-full place-items-center text-sm text-muted-foreground">Sem pedidos hoje</div>
+            ) : (
+              <ResponsiveContainer>
+                <PieChart>
+                  <Pie data={statusToday.data ?? []} cx="50%" cy="50%" innerRadius={50} outerRadius={90} paddingAngle={3} dataKey="value">
+                    {(statusToday.data ?? []).map((e, i) => <Cell key={i} fill={e.color} />)}
+                  </Pie>
+                  <Tooltip />
+                  <Legend wrapperStyle={{ fontSize: 12 }} />
+                </PieChart>
+              </ResponsiveContainer>
+            )}
           </div>
         </div>
       </div>
 
-      {/* Bottom Row */}
       <div className="grid gap-6 lg:grid-cols-2">
-        {/* Low Stock Alert */}
+        {/* Card 3: Top 5 produtos */}
         <div className="rounded-2xl border border-border bg-card p-6">
           <div className="mb-4 flex items-center gap-2">
-            <AlertTriangle className="h-5 w-5 text-flame" />
-            <h2 className="font-display text-lg font-bold">Estoque baixo</h2>
+            <Trophy className="h-5 w-5 text-flame" />
+            <h2 className="font-display text-lg font-bold">Top 5 produtos (30 dias)</h2>
           </div>
-          {(s?.lowStock ?? []).length === 0 ? (
-            <p className="py-8 text-center text-sm text-muted-foreground">Tudo abastecido 🎉</p>
+          {topProducts.isLoading ? (
+            <div className="space-y-2">{[1,2,3,4,5].map(i => <Skeleton key={i} className="h-10 w-full" />)}</div>
+          ) : (topProducts.data ?? []).length === 0 ? (
+            <p className="py-8 text-center text-sm text-muted-foreground">Sem vendas no período</p>
           ) : (
-            <div className="space-y-2">
-              {(s?.lowStock ?? []).slice(0, 10).map(p => (
-                <div key={p.id} className="flex items-center justify-between rounded-lg bg-surface px-3 py-2 text-sm">
-                  <span className="truncate">{p.name}</span>
-                  <span className={`rounded-md px-2 py-0.5 text-xs font-bold ${p.stock === 0 ? "bg-destructive/20 text-destructive" : "bg-flame/20 text-flame"}`}>
-                    {p.stock} un
-                  </span>
-                </div>
-              ))}
-            </div>
+            <ol className="space-y-2">
+              {(topProducts.data ?? []).map((p, i, arr) => {
+                const max = arr[0].qty;
+                const pct = (p.qty / max) * 100;
+                return (
+                  <li key={p.name} className="space-y-1">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="font-semibold">#{i + 1} {p.name}</span>
+                      <span className="text-muted-foreground">{p.qty} un</span>
+                    </div>
+                    <div className="h-2 overflow-hidden rounded-full bg-surface">
+                      <div className="h-full bg-gradient-to-r from-flame to-amber-500" style={{ width: `${pct}%` }} />
+                    </div>
+                  </li>
+                );
+              })}
+            </ol>
           )}
         </div>
 
-        {/* Recent Orders */}
+        {/* Card 5: Últimos 5 pedidos */}
         <div className="rounded-2xl border border-border bg-card p-6">
           <div className="mb-4 flex items-center gap-2">
             <Clock className="h-5 w-5 text-brand" />
-            <h2 className="font-display text-lg font-bold">Pedidos recentes</h2>
+            <h2 className="font-display text-lg font-bold">Últimos pedidos</h2>
           </div>
-          {(s?.recentOrders ?? []).length === 0 ? (
+          {recent.isLoading ? (
+            <div className="space-y-2">{[1,2,3,4,5].map(i => <Skeleton key={i} className="h-10 w-full" />)}</div>
+          ) : (recent.data ?? []).length === 0 ? (
             <p className="py-8 text-center text-sm text-muted-foreground">Nenhum pedido ainda</p>
           ) : (
-            <div className="space-y-2 text-sm">
-              {(s?.recentOrders ?? []).slice(0, 6).map((o, i) => (
-                <div key={i} className="flex items-center justify-between rounded-lg bg-surface px-3 py-2">
-                  <div>
-                    <p className="font-semibold">{o.customer_name}</p>
-                    <p className="text-xs text-muted-foreground">{new Date(o.created_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</p>
-                  </div>
-                  <span className="font-semibold">{formatBRL(Number(o.total))}</span>
-                </div>
-              ))}
-            </div>
+            <table className="w-full text-sm">
+              <thead className="text-left text-xs uppercase text-muted-foreground">
+                <tr><th className="py-1">#</th><th>Cliente</th><th>Total</th><th>Status</th><th>Há</th></tr>
+              </thead>
+              <tbody>
+                {(recent.data ?? []).map(o => (
+                  <tr key={o.id} className="border-t border-border/60">
+                    <td className="py-2 font-mono">#{o.order_number}</td>
+                    <td className="truncate">{o.customer_name}</td>
+                    <td className="font-semibold">{formatBRL(Number(o.total))}</td>
+                    <td>
+                      <span className="rounded-md px-2 py-0.5 text-xs font-bold" style={{ background: `${STATUS_COLORS[o.status]}22`, color: STATUS_COLORS[o.status] }}>
+                        {STATUS_LABELS[o.status]}
+                      </span>
+                    </td>
+                    <td className="text-xs text-muted-foreground">{timeAgo(o.created_at)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           )}
+          <div className="mt-3 text-right">
+            <Link to="/admin/pedidos" className="text-xs text-brand hover:underline">Ver todos →</Link>
+          </div>
         </div>
       </div>
     </div>
   );
 }
 
-function Card({ icon: Icon, label, value, sub, accent }: { icon: typeof DollarSign; label: string; value: string; sub?: string; accent?: boolean }) {
+function Kpi({ icon: Icon, label, value, accent }: { icon: typeof DollarSign; label: string; value: string; accent?: boolean }) {
   return (
     <div className={`rounded-2xl border border-border bg-card p-5 transition hover:border-brand/50 ${accent ? "glow-brand" : ""}`}>
       <div className="flex items-center justify-between">
@@ -248,8 +279,8 @@ function Card({ icon: Icon, label, value, sub, accent }: { icon: typeof DollarSi
         </div>
       </div>
       <div className="mt-3 font-display text-2xl font-extrabold">{value}</div>
-      {sub && <div className="text-xs text-muted-foreground">{sub}</div>}
     </div>
   );
 }
 
+void Activity; void ShoppingBag;
