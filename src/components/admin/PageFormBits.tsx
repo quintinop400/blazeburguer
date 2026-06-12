@@ -1,5 +1,7 @@
+import { useState } from "react";
 import { toast } from "sonner";
-import { Loader2, Save } from "lucide-react";
+import { Loader2, Save, Image as ImageIcon, X } from "lucide-react";
+import { MediaPicker } from "@/components/MediaPicker";
 
 export function AdminInput({
   label,
