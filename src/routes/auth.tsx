@@ -53,8 +53,22 @@ function AuthPage() {
       }
       navigate({ to: target });
 
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Erro inesperado");
+    } catch (err: any) {
+      console.error("[AUTH ERROR]", { mode, err, message: err?.message, status: err?.status, code: err?.code });
+      const raw = err?.message ?? "";
+      let msg = raw || "Erro inesperado";
+      if (/weak_password|pwned|known to be weak/i.test(raw)) {
+        msg = "Senha muito fraca ou já vazada. Use uma senha forte (8+ caracteres, letras, números e símbolos).";
+      } else if (/invalid login credentials/i.test(raw)) {
+        msg = "E-mail ou senha incorretos.";
+      } else if (/email not confirmed/i.test(raw)) {
+        msg = "Confirme seu e-mail antes de entrar.";
+      } else if (/user already registered/i.test(raw)) {
+        msg = "Este e-mail já está cadastrado. Faça login.";
+      } else if (/failed to fetch/i.test(raw)) {
+        msg = "Falha de conexão. Tente novamente em alguns instantes.";
+      }
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
@@ -62,16 +76,23 @@ function AuthPage() {
 
   async function handleGoogle() {
     setLoading(true);
-    const result = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: window.location.origin,
-    });
-    if (result.error) {
-      toast.error("Falha ao entrar com Google");
+    try {
+      const result = await lovable.auth.signInWithOAuth("google", {
+        redirect_uri: window.location.origin,
+      });
+      if (result.error) {
+        console.error("[GOOGLE OAUTH ERROR]", result.error);
+        toast.error(`Falha ao entrar com Google: ${result.error.message ?? "erro desconhecido"}`);
+        setLoading(false);
+        return;
+      }
+      if (result.redirected) return;
+      navigate({ to: target });
+    } catch (e: any) {
+      console.error("[GOOGLE OAUTH EXCEPTION]", e);
+      toast.error(`Falha ao entrar com Google: ${e?.message ?? "erro desconhecido"}`);
       setLoading(false);
-      return;
     }
-    if (result.redirected) return;
-    navigate({ to: target });
   }
 
   return (
