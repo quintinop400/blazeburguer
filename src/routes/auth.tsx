@@ -26,6 +26,10 @@ function AuthPage() {
 
   const target = redirect && redirect.startsWith("/") ? redirect : "/";
 
+  function isStrongPassword(value: string) {
+    return /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/.test(value);
+  }
+
   async function handleEmail(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
@@ -39,47 +43,83 @@ function AuthPage() {
     });
     try {
       if (mode === "signup") {
+        const trimmedName = name.trim();
+        const normalizedEmail = email.trim().toLowerCase();
+
+        if (!trimmedName) {
+          toast.error("Informe seu nome completo para continuar.");
+          return;
+        }
+
+        if (!isStrongPassword(password)) {
+          toast.error("Use uma senha forte com no mínimo 8 caracteres, incluindo maiúscula, minúscula, número e símbolo.");
+          return;
+        }
+
+        const redirectUrl = `${window.location.origin}/auth?redirect=${encodeURIComponent(target)}`;
+        const payload = {
+          email: normalizedEmail,
+          passwordLength: password.length,
+          fullName: trimmedName,
+          emailRedirectTo: redirectUrl,
+          target,
+          origin: typeof window !== "undefined" ? window.location.origin : null,
+        };
+
+        console.log("[AUTH] signup_request", payload);
+
         const { data, error } = await supabase.auth.signUp({
-          email,
+          email: normalizedEmail,
           password,
           options: {
-            emailRedirectTo: window.location.origin,
-            data: { full_name: name },
+            emailRedirectTo: redirectUrl,
+            data: { full_name: trimmedName },
           },
         });
         console.log("[AUTH] signup_response", {
           hasUser: Boolean(data.user),
           hasSession: Boolean(data.session),
           userId: data.user?.id ?? null,
+          email: data.user?.email ?? normalizedEmail,
           identities: data.user?.identities?.map((identity) => identity.provider) ?? [],
+          requiresEmailConfirmation: !data.session,
+          data,
           error: error
             ? {
                 message: error.message,
                 status: (error as any)?.status,
                 code: (error as any)?.code,
                 name: error.name,
+                details: (error as any)?.details,
+                hint: (error as any)?.hint,
+                stack: (error as any)?.stack,
               }
             : null,
         });
         if (error) throw error;
         if (!data.session) {
-          toast.success("Conta criada! Confirme seu e-mail para entrar.");
+          toast.success("Conta criada! Enviamos um e-mail de confirmação. Abra o link para ativar sua conta e depois faça login.");
           setMode("login");
           return;
         }
         toast.success("Conta criada! Bem-vindo(a) 🔥");
       } else {
-        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+        const normalizedEmail = email.trim().toLowerCase();
+        const { data, error } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password });
         console.log("[AUTH] login_response", {
           hasUser: Boolean(data.user),
           hasSession: Boolean(data.session),
           userId: data.user?.id ?? null,
+          email: data.user?.email ?? normalizedEmail,
           error: error
             ? {
                 message: error.message,
                 status: (error as any)?.status,
                 code: (error as any)?.code,
                 name: error.name,
+                details: (error as any)?.details,
+                hint: (error as any)?.hint,
+                stack: (error as any)?.stack,
               }
             : null,
         });
@@ -229,7 +269,7 @@ function AuthPage() {
               <Field icon={UserIcon} placeholder="Nome completo" value={name} onChange={setName} required />
             )}
             <Field icon={Mail} placeholder="E-mail" value={email} onChange={setEmail} type="email" required />
-            <Field icon={Lock} placeholder="Senha (mín. 6 caracteres)" value={password} onChange={setPassword} type="password" required minLength={6} />
+            <Field icon={Lock} placeholder="Senha forte (mín. 8 caracteres)" value={password} onChange={setPassword} type="password" required minLength={8} />
 
             <button
               type="submit"
