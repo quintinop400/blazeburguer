@@ -10,7 +10,13 @@ export function useAuth() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log("[AUTH STATE] onAuthStateChange", {
+        event,
+        userId: session?.user?.id ?? null,
+        email: session?.user?.email ?? null,
+        hasSession: Boolean(session),
+      });
       setUser(session?.user ?? null);
       if (session?.user) {
         // defer to avoid recursion
@@ -19,7 +25,20 @@ export function useAuth() {
         setRoles([]);
       }
     });
-    supabase.auth.getSession().then(({ data }) => {
+    supabase.auth.getSession().then(({ data, error }) => {
+      console.log("[AUTH STATE] getSession", {
+        userId: data.session?.user?.id ?? null,
+        email: data.session?.user?.email ?? null,
+        hasSession: Boolean(data.session),
+        error: error
+          ? {
+              message: error.message,
+              name: error.name,
+              status: (error as any)?.status,
+              code: (error as any)?.code,
+            }
+          : null,
+      });
       setUser(data.session?.user ?? null);
       if (data.session?.user) loadRoles(data.session.user.id);
       setLoading(false);
@@ -28,8 +47,21 @@ export function useAuth() {
   }, []);
 
   async function loadRoles(uid: string) {
-    const { data } = await supabase.from("user_roles").select("role").eq("user_id", uid);
-    setRoles((data ?? []).map(r => r.role as AppRole));
+    const { data, error } = await supabase.from("user_roles").select("role").eq("user_id", uid);
+    if (error) {
+      console.error("[AUTH STATE] loadRoles_error", {
+        userId: uid,
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code,
+      });
+      setRoles([]);
+      return;
+    }
+    const nextRoles = (data ?? []).map(r => r.role as AppRole);
+    console.log("[AUTH STATE] loadRoles_success", { userId: uid, roles: nextRoles });
+    setRoles(nextRoles);
   }
 
   const isStaff = roles.includes("admin") || roles.includes("staff");
@@ -39,5 +71,16 @@ export function useAuth() {
 }
 
 export async function signOut() {
-  await supabase.auth.signOut();
+  console.log("[AUTH STATE] signOut_submit");
+  const { error } = await supabase.auth.signOut();
+  if (error) {
+    console.error("[AUTH STATE] signOut_error", {
+      message: error.message,
+      name: error.name,
+      status: (error as any)?.status,
+      code: (error as any)?.code,
+    });
+    throw error;
+  }
+  console.log("[AUTH STATE] signOut_success");
 }

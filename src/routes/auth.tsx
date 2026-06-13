@@ -29,6 +29,14 @@ function AuthPage() {
   async function handleEmail(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
+    console.log("[AUTH] email_submit", {
+      mode,
+      email,
+      hasName: Boolean(name?.trim()),
+      passwordLength: password.length,
+      target,
+      origin: typeof window !== "undefined" ? window.location.origin : null,
+    });
     try {
       if (mode === "signup") {
         const { data, error } = await supabase.auth.signUp({
@@ -39,6 +47,20 @@ function AuthPage() {
             data: { full_name: name },
           },
         });
+        console.log("[AUTH] signup_response", {
+          hasUser: Boolean(data.user),
+          hasSession: Boolean(data.session),
+          userId: data.user?.id ?? null,
+          identities: data.user?.identities?.map((identity) => identity.provider) ?? [],
+          error: error
+            ? {
+                message: error.message,
+                status: (error as any)?.status,
+                code: (error as any)?.code,
+                name: error.name,
+              }
+            : null,
+        });
         if (error) throw error;
         if (!data.session) {
           toast.success("Conta criada! Confirme seu e-mail para entrar.");
@@ -47,14 +69,39 @@ function AuthPage() {
         }
         toast.success("Conta criada! Bem-vindo(a) 🔥");
       } else {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+        console.log("[AUTH] login_response", {
+          hasUser: Boolean(data.user),
+          hasSession: Boolean(data.session),
+          userId: data.user?.id ?? null,
+          error: error
+            ? {
+                message: error.message,
+                status: (error as any)?.status,
+                code: (error as any)?.code,
+                name: error.name,
+              }
+            : null,
+        });
         if (error) throw error;
         toast.success("Login feito!");
       }
+      console.log("[AUTH] email_success", { mode, email, target });
       navigate({ to: target });
 
     } catch (err: any) {
-      console.error("[AUTH ERROR]", { mode, err, message: err?.message, status: err?.status, code: err?.code });
+      console.error("[AUTH ERROR]", {
+        stage: mode === "signup" ? "signup" : "login",
+        mode,
+        email,
+        target,
+        err,
+        message: err?.message,
+        status: err?.status,
+        code: err?.code,
+        name: err?.name,
+        stack: err?.stack,
+      });
       const raw = err?.message ?? "";
       let msg = raw || "Erro inesperado";
       if (/weak_password|pwned|known to be weak/i.test(raw)) {
@@ -76,9 +123,25 @@ function AuthPage() {
 
   async function handleGoogle() {
     setLoading(true);
+    console.log("[AUTH] google_submit", {
+      provider: "google",
+      target,
+      origin: typeof window !== "undefined" ? window.location.origin : null,
+    });
     try {
       const result = await lovable.auth.signInWithOAuth("google", {
         redirect_uri: window.location.origin,
+      });
+      console.log("[AUTH] google_response", {
+        redirected: Boolean(result.redirected),
+        hasTokens: Boolean((result as any)?.tokens),
+        error: result.error
+          ? {
+              message: result.error.message,
+              name: result.error.name,
+              stack: result.error.stack,
+            }
+          : null,
       });
       if (result.error) {
         console.error("[GOOGLE OAUTH ERROR]", result.error);
@@ -86,10 +149,21 @@ function AuthPage() {
         setLoading(false);
         return;
       }
-      if (result.redirected) return;
+      if (result.redirected) {
+        console.log("[AUTH] google_redirected", { target });
+        return;
+      }
+      console.log("[AUTH] google_success", { target });
       navigate({ to: target });
     } catch (e: any) {
-      console.error("[GOOGLE OAUTH EXCEPTION]", e);
+      console.error("[GOOGLE OAUTH EXCEPTION]", {
+        provider: "google",
+        target,
+        message: e?.message,
+        name: e?.name,
+        stack: e?.stack,
+        error: e,
+      });
       toast.error(`Falha ao entrar com Google: ${e?.message ?? "erro desconhecido"}`);
       setLoading(false);
     }
