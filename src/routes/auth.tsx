@@ -22,7 +22,6 @@ function AuthPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(false);
 
   const target = redirect && redirect.startsWith("/") ? redirect : "/";
@@ -37,7 +36,7 @@ function AuthPage() {
           password,
           options: {
             emailRedirectTo: window.location.origin,
-            data: { full_name: name, phone },
+            data: { full_name: name },
           },
         });
         if (error) throw error;
@@ -132,10 +131,7 @@ function AuthPage() {
 
           <form onSubmit={handleEmail} className="space-y-3">
             {mode === "signup" && (
-              <>
-                <Field icon={UserIcon} placeholder="Nome completo" value={name} onChange={setName} required />
-                <Field icon={UserIcon} placeholder="Telefone" value={phone} onChange={setPhone} type="tel" />
-              </>
+              <Field icon={UserIcon} placeholder="Nome completo" value={name} onChange={setName} required />
             )}
             <Field icon={Mail} placeholder="E-mail" value={email} onChange={setEmail} type="email" required />
             <Field icon={Lock} placeholder="Senha (mín. 6 caracteres)" value={password} onChange={setPassword} type="password" required minLength={6} />
