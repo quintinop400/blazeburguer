@@ -66,6 +66,7 @@ function AuthPage() {
           origin: typeof window !== "undefined" ? window.location.origin : null,
         };
 
+        console.log("SIGNUP REQUEST", payload);
         console.log("[AUTH] signup_request", payload);
 
         const { data, error } = await supabase.auth.signUp({
@@ -76,6 +77,7 @@ function AuthPage() {
             data: { full_name: trimmedName },
           },
         });
+        console.log("SIGNUP RESPONSE", data);
         console.log("[AUTH] signup_response", {
           hasUser: Boolean(data.user),
           hasSession: Boolean(data.session),
@@ -96,7 +98,10 @@ function AuthPage() {
               }
             : null,
         });
-        if (error) throw error;
+        if (error) {
+          console.error("SIGNUP ERROR", error);
+          throw error;
+        }
         if (!data.session) {
           toast.success("Conta criada! Enviamos um e-mail de confirmação. Abra o link para ativar sua conta e depois faça login.");
           setMode("login");
@@ -130,6 +135,9 @@ function AuthPage() {
       navigate({ to: target });
 
     } catch (err: any) {
+      if (mode === "signup") {
+        console.error("SIGNUP ERROR", err);
+      }
       console.error("[AUTH ERROR]", {
         stage: mode === "signup" ? "signup" : "login",
         mode,
