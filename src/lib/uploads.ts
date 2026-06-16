@@ -11,7 +11,7 @@ export type UploadedMedia = {
   mime_type: string | null;
 };
 
-export async function uploadMedia(file: File): Promise<UploadedMedia> {
+export async function uploadMedia(file: File, categoryId?: string): Promise<UploadedMedia> {
   const ext = file.name.split(".").pop() || "bin";
   const path = `${crypto.randomUUID()}.${ext}`;
 
@@ -34,6 +34,7 @@ export async function uploadMedia(file: File): Promise<UploadedMedia> {
       filename: file.name,
       mime_type: file.type || null,
       size_bytes: file.size,
+      category_id: categoryId,
     })
     .select("id, public_url, path, filename, mime_type")
     .single();

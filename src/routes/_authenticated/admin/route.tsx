@@ -31,6 +31,7 @@ const NAV: NavItem[] = [
   { to: "/admin/avaliacoes", label: "Avaliações", icon: Star },
   { to: "/admin/clientes", label: "Clientes", icon: Users },
   { to: "/admin/paginas/home", label: "Pág. Home", icon: FileText },
+  { to: "/admin/personalizacao/home", label: "Personalização Home", icon: FileText },
   { to: "/admin/paginas/quem-somos", label: "Pág. Quem Somos", icon: FileText },
   { to: "/admin/paginas/contato", label: "Pág. Contato", icon: FileText },
   { to: "/admin/paginas/faq", label: "Pág. FAQ (textos)", icon: FileText },
