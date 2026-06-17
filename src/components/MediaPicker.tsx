@@ -22,9 +22,7 @@ export function MediaPicker({ open, onClose, onPick }: { open: boolean; onClose:
   const { data: assets = [] } = useQuery({
     queryKey: ["media_assets", selectedCategory, query],
     queryFn: async () => {
-      let q = supabase
-        .from("media_assets")
-        .select("id,public_url,path,filename,mime_type,category_id");
+      let q = supabase.from("media_assets").select("*");
 
       if (selectedCategory) {
         q = q.eq("category_id", selectedCategory);
@@ -33,10 +31,10 @@ export function MediaPicker({ open, onClose, onPick }: { open: boolean; onClose:
       const { data } = await q.order("created_at", { ascending: false });
       return (data ?? []).map((r) => ({
         id: r.id,
-        url: r.public_url ?? "",
-        name: r.filename ?? "",
+        url: r.public_url ?? r.url ?? "",
+        name: r.filename ?? r.name ?? "",
         mime_type: r.mime_type,
-        storage_path: r.path,
+        storage_path: r.path ?? r.storage_path,
         category_id: r.category_id,
       })) as Asset[];
     },
