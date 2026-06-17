@@ -15,35 +15,89 @@ export async function uploadMedia(file: File, categoryId?: string): Promise<Uplo
   const ext = file.name.split(".").pop() || "bin";
   const path = `${crypto.randomUUID()}.${ext}`;
 
+  console.log("[UPLOAD] Iniciando upload", { file: file.name, size: file.size, type: file.type });
+
   const { error: upErr } = await supabase.storage.from(MEDIA_BUCKET).upload(path, file, {
     cacheControl: "31536000",
     upsert: false,
     contentType: file.type || undefined,
   });
-  if (upErr) throw upErr;
+  if (upErr) {
+    console.error("[UPLOAD] Erro ao fazer upload no storage", upErr);
+    throw upErr;
+  }
+  console.log("[UPLOAD] Arquivo enviado com sucesso ao storage", { path });
 
   const { data: signed, error: sErr } = await supabase.storage.from(MEDIA_BUCKET).createSignedUrl(path, YEAR);
-  if (sErr || !signed) throw sErr ?? new Error("Falha ao gerar URL");
+  if (sErr || !signed) {
+    console.error("[UPLOAD] Erro ao gerar URL assinada", sErr);
+    throw sErr ?? new Error("Falha ao gerar URL");
+  }
+  console.log("[UPLOAD] URL assinada gerada com sucesso");
 
-  const { data: row, error: insErr } = await supabase
+  const insertPayload: any = {
+    bucket: MEDIA_BUCKET,
+    path,
+    public_url: signed.signedUrl,
+    filename: file.name,
+    mime_type: file.type || null,
+    size_bytes: file.size,
+  };
+  
+  // Só adiciona category_id se for fornecido
+  if (categoryId) {
+    insertPayload.category_id = categoryId;
+  }
+
+  console.log("[UPLOAD] Tentando inserir no banco de dados", { categoryId });
+
+  let row: any;
+  const { data: rowData, error: insErr } = await supabase
     .from("media_assets")
-    .insert({
-      bucket: MEDIA_BUCKET,
-      path,
-      public_url: signed.signedUrl,
-      filename: file.name,
-      mime_type: file.type || null,
-      size_bytes: file.size,
-      category_id: categoryId,
-    })
-    .select("id, public_url, path, filename, mime_type")
+    .insert(insertPayload)
+    .select("*")
     .single();
-  if (insErr) throw insErr;
+
+  if (insErr) {
+    console.error("[UPLOAD] Erro ao inserir - tentando fallback", { error: insErr.message });
+    const message = insErr.message?.toLowerCase() ?? "";
+    if (message.includes("column public_url") || message.includes("column filename") || message.includes("column category_id") || message.includes("column bucket") || message.includes("column path")) {
+      console.log("[UPLOAD] Usando schema antigo (fallback)");
+      const fallbackPayload: any = {
+        storage_path: path,
+        url: signed.signedUrl,
+        name: file.name,
+        mime_type: file.type || null,
+        size_bytes: file.size,
+      };
+      if (categoryId) {
+        fallbackPayload.category_id = categoryId;
+      }
+      const { data: fallbackRow, error: fallbackErr } = await supabase
+        .from("media_assets")
+        .insert(fallbackPayload)
+        .select("*")
+        .single();
+      if (fallbackErr) {
+        console.error("[UPLOAD] Erro no fallback também", fallbackErr);
+        throw fallbackErr;
+      }
+      row = fallbackRow;
+    } else {
+      console.error("[UPLOAD] Erro que não é de schema", insErr);
+      throw insErr;
+    }
+  } else {
+    row = rowData;
+  }
+
+  console.log("[UPLOAD] Sucesso! Arquivo registrado no banco", { id: row?.id });
+
   return {
     id: row.id,
-    url: row.public_url ?? signed.signedUrl,
-    storage_path: row.path,
-    name: row.filename ?? file.name,
+    url: row.public_url ?? row.url ?? signed.signedUrl,
+    storage_path: row.path ?? row.storage_path,
+    name: row.filename ?? row.name ?? file.name,
     mime_type: row.mime_type,
   };
 }

@@ -44,9 +44,7 @@ export function useMediaAssets(categoryId?: string, searchQuery?: string) {
   return useQuery({
     queryKey: ["media_assets", categoryId, searchQuery],
     queryFn: async () => {
-      let query = supabase
-        .from("media_assets")
-        .select("id,public_url,path,filename,mime_type,category_id,width,height,alt,tags,created_at");
+      let query = supabase.from("media_assets").select("*");
 
       if (categoryId) {
         query = query.eq("category_id", categoryId);
@@ -56,15 +54,16 @@ export function useMediaAssets(categoryId?: string, searchQuery?: string) {
         query = query.or(`filename.ilike.%${searchQuery}%,alt.ilike.%${searchQuery}%`);
       }
 
-      const { data, error } = await query.order("created_at", { ascending: false });
+        const { data, error } = await query.order("created_at", { ascending: false });
+        console.log("[MEDIA_QUERY] Resposta do Supabase", { categoryId, searchQuery, count: data?.length, data, error });
       if (error) throw error;
 
       return (data ?? []).map((r: any) => ({
         id: r.id,
-        url: r.public_url ?? "",
-        name: r.filename ?? "",
+        url: r.public_url ?? r.url ?? "",
+        name: r.filename ?? r.name ?? "",
         mime_type: r.mime_type,
-        storage_path: r.path,
+        storage_path: r.path ?? r.storage_path,
         category_id: r.category_id,
         width: r.width,
         height: r.height,
