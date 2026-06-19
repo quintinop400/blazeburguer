@@ -1,11 +1,12 @@
 import { useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Upload, X, Image as ImageIcon, Loader2, Search, Video } from "lucide-react";
+import { Upload, X, Image as ImageIcon, Loader2, Search, Video, FolderOpen } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { uploadMedia } from "@/lib/uploads";
+import { useMediaCategories } from "@/hooks/useMedia";
 
-type Asset = { id: string; url: string; name: string; mime_type: string | null; storage_path: string };
+type Asset = { id: string; url: string; name: string; mime_type: string | null; storage_path: string; category_id?: string };
 
 type AssetFilter = "all" | "image" | "video";
 
@@ -15,43 +16,53 @@ export function MediaPicker({ open, onClose, onPick }: { open: boolean; onClose:
   const [uploading, setUploading] = useState(false);
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<AssetFilter>("all");
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const { data: categories = [] } = useMediaCategories();
 
   const { data: assets = [] } = useQuery({
-    queryKey: ["media_assets"],
+    queryKey: ["media_assets", selectedCategory, query],
     queryFn: async () => {
-      const { data } = await supabase
-        .from("media_assets")
-        .select("id,public_url,path,filename,mime_type")
-        .order("created_at", { ascending: false });
+      let q = supabase.from("media_assets").select("*");
+
+      if (selectedCategory) {
+        q = q.eq("category_id", selectedCategory);
+      }
+
+      const { data } = await q.order("created_at", { ascending: false });
       return (data ?? []).map((r) => ({
         id: r.id,
-        url: r.public_url ?? "",
-        name: r.filename ?? "",
+        url: r.public_url ?? r.url ?? "",
+        name: r.filename ?? r.name ?? "",
         mime_type: r.mime_type,
-        storage_path: r.path,
+        storage_path: r.path ?? r.storage_path,
+        category_id: r.category_id,
       })) as Asset[];
     },
     enabled: open,
   });
 
-  const filteredAssets = useMemo(() => assets.filter(asset => {
-    const matchesFilter =
-      filter === "all"
-        ? true
-        : filter === "image"
-          ? asset.mime_type?.startsWith("image")
-          : asset.mime_type?.startsWith("video");
-    const matchesQuery = query.trim().length === 0
-      ? true
-      : asset.name.toLowerCase().includes(query.toLowerCase()) || asset.url.toLowerCase().includes(query.toLowerCase());
-    return matchesFilter && matchesQuery;
-  }), [assets, filter, query]);
+  const filteredAssets = useMemo(() =>
+    assets.filter((asset) => {
+      const matchesFilter =
+        filter === "all"
+          ? true
+          : filter === "image"
+            ? asset.mime_type?.startsWith("image")
+            : asset.mime_type?.startsWith("video");
+      const matchesQuery =
+        query.trim().length === 0
+          ? true
+          : asset.name.toLowerCase().includes(query.toLowerCase()) || asset.url.toLowerCase().includes(query.toLowerCase());
+      return matchesFilter && matchesQuery;
+    }),
+    [assets, filter, query]
+  );
 
   async function handleFiles(files: FileList | null) {
     if (!files?.length) return;
     setUploading(true);
     try {
-      for (const f of Array.from(files)) await uploadMedia(f);
+      for (const f of Array.from(files)) await uploadMedia(f, selectedCategory || undefined);
       toast.success("Upload concluído");
       qc.invalidateQueries({ queryKey: ["media_assets"] });
     } catch (e) {
@@ -65,7 +76,7 @@ export function MediaPicker({ open, onClose, onPick }: { open: boolean; onClose:
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/70 p-4 backdrop-blur-sm" onClick={onClose}>
-      <div className="flex h-[85vh] w-full max-w-5xl flex-col overflow-hidden rounded-3xl border border-border bg-card shadow-2xl" onClick={e => e.stopPropagation()}>
+      <div className="flex h-[85vh] w-full max-w-6xl flex-col overflow-hidden rounded-3xl border border-border bg-card shadow-2xl" onClick={e => e.stopPropagation()}>
         <div className="flex flex-col gap-4 border-b border-border p-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="font-display text-lg font-bold">Biblioteca de mídia</h2>
@@ -85,7 +96,36 @@ export function MediaPicker({ open, onClose, onPick }: { open: boolean; onClose:
           </div>
         </div>
 
-        <div className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between">
+        {/* Categorias Horizontais */}
+        <div className="border-b border-border bg-card/50 p-4">
+          <div className="flex gap-2 overflow-x-auto pb-2">
+            <button
+              onClick={() => setSelectedCategory(null)}
+              className={`inline-flex items-center gap-2 whitespace-nowrap rounded-full px-4 py-2 text-xs font-semibold transition ${
+                selectedCategory === null
+                  ? "gradient-flame text-white"
+                  : "border border-border bg-surface text-muted-foreground hover:border-brand"
+              }`}
+            >
+              <FolderOpen className="h-3 w-3" /> Todos
+            </button>
+            {categories.map((cat) => (
+              <button
+                key={cat.id}
+                onClick={() => setSelectedCategory(cat.id)}
+                className={`inline-flex items-center gap-2 whitespace-nowrap rounded-full px-4 py-2 text-xs font-semibold transition ${
+                  selectedCategory === cat.id
+                    ? "gradient-flame text-white"
+                    : "border border-border bg-surface text-muted-foreground hover:border-brand"
+                }`}
+              >
+                <span>{cat.icon}</span> {cat.name}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-4 border-b border-border bg-card/50 p-4 sm:flex-row sm:items-center sm:justify-between">
           <label className="flex flex-1 items-center gap-3 rounded-2xl border border-border bg-surface px-4 py-3">
             <Search className="h-4 w-4 text-muted-foreground" />
             <input
@@ -118,7 +158,7 @@ export function MediaPicker({ open, onClose, onPick }: { open: boolean; onClose:
               </div>
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
               {filteredAssets.map(a => (
                 <button
                   key={a.id}

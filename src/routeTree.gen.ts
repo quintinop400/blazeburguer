@@ -37,6 +37,7 @@ import { Route as AuthenticatedAdminClientesRouteImport } from './routes/_authen
 import { Route as AuthenticatedAdminCategoriasRouteImport } from './routes/_authenticated/admin/categorias'
 import { Route as AuthenticatedAdminBannersRouteImport } from './routes/_authenticated/admin/banners'
 import { Route as AuthenticatedAdminAvaliacoesRouteImport } from './routes/_authenticated/admin/avaliacoes'
+import { Route as AuthenticatedAdminPersonalizacaoHomeRouteImport } from './routes/_authenticated/admin/personalizacao.home'
 import { Route as AuthenticatedAdminPaginasTrabalheConoscoRouteImport } from './routes/_authenticated/admin/paginas.trabalhe-conosco'
 import { Route as AuthenticatedAdminPaginasQuemSomosRouteImport } from './routes/_authenticated/admin/paginas.quem-somos'
 import { Route as AuthenticatedAdminPaginasHomeRouteImport } from './routes/_authenticated/admin/paginas.home'
@@ -192,6 +193,12 @@ const AuthenticatedAdminAvaliacoesRoute =
     path: '/avaliacoes',
     getParentRoute: () => AuthenticatedAdminRouteRoute,
   } as any)
+const AuthenticatedAdminPersonalizacaoHomeRoute =
+  AuthenticatedAdminPersonalizacaoHomeRouteImport.update({
+    id: '/personalizacao/home',
+    path: '/personalizacao/home',
+    getParentRoute: () => AuthenticatedAdminRouteRoute,
+  } as any)
 const AuthenticatedAdminPaginasTrabalheConoscoRoute =
   AuthenticatedAdminPaginasTrabalheConoscoRouteImport.update({
     id: '/paginas/trabalhe-conosco',
@@ -263,6 +270,7 @@ export interface FileRoutesByFullPath {
   '/admin/paginas/home': typeof AuthenticatedAdminPaginasHomeRoute
   '/admin/paginas/quem-somos': typeof AuthenticatedAdminPaginasQuemSomosRoute
   '/admin/paginas/trabalhe-conosco': typeof AuthenticatedAdminPaginasTrabalheConoscoRoute
+  '/admin/personalizacao/home': typeof AuthenticatedAdminPersonalizacaoHomeRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -297,6 +305,7 @@ export interface FileRoutesByTo {
   '/admin/paginas/home': typeof AuthenticatedAdminPaginasHomeRoute
   '/admin/paginas/quem-somos': typeof AuthenticatedAdminPaginasQuemSomosRoute
   '/admin/paginas/trabalhe-conosco': typeof AuthenticatedAdminPaginasTrabalheConoscoRoute
+  '/admin/personalizacao/home': typeof AuthenticatedAdminPersonalizacaoHomeRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -334,6 +343,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/paginas/home': typeof AuthenticatedAdminPaginasHomeRoute
   '/_authenticated/admin/paginas/quem-somos': typeof AuthenticatedAdminPaginasQuemSomosRoute
   '/_authenticated/admin/paginas/trabalhe-conosco': typeof AuthenticatedAdminPaginasTrabalheConoscoRoute
+  '/_authenticated/admin/personalizacao/home': typeof AuthenticatedAdminPersonalizacaoHomeRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -371,6 +381,7 @@ export interface FileRouteTypes {
     | '/admin/paginas/home'
     | '/admin/paginas/quem-somos'
     | '/admin/paginas/trabalhe-conosco'
+    | '/admin/personalizacao/home'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -405,6 +416,7 @@ export interface FileRouteTypes {
     | '/admin/paginas/home'
     | '/admin/paginas/quem-somos'
     | '/admin/paginas/trabalhe-conosco'
+    | '/admin/personalizacao/home'
   id:
     | '__root__'
     | '/'
@@ -441,6 +453,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/paginas/home'
     | '/_authenticated/admin/paginas/quem-somos'
     | '/_authenticated/admin/paginas/trabalhe-conosco'
+    | '/_authenticated/admin/personalizacao/home'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -658,6 +671,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminAvaliacoesRouteImport
       parentRoute: typeof AuthenticatedAdminRouteRoute
     }
+    '/_authenticated/admin/personalizacao/home': {
+      id: '/_authenticated/admin/personalizacao/home'
+      path: '/personalizacao/home'
+      fullPath: '/admin/personalizacao/home'
+      preLoaderRoute: typeof AuthenticatedAdminPersonalizacaoHomeRouteImport
+      parentRoute: typeof AuthenticatedAdminRouteRoute
+    }
     '/_authenticated/admin/paginas/trabalhe-conosco': {
       id: '/_authenticated/admin/paginas/trabalhe-conosco'
       path: '/paginas/trabalhe-conosco'
@@ -722,6 +742,7 @@ interface AuthenticatedAdminRouteRouteChildren {
   AuthenticatedAdminPaginasHomeRoute: typeof AuthenticatedAdminPaginasHomeRoute
   AuthenticatedAdminPaginasQuemSomosRoute: typeof AuthenticatedAdminPaginasQuemSomosRoute
   AuthenticatedAdminPaginasTrabalheConoscoRoute: typeof AuthenticatedAdminPaginasTrabalheConoscoRoute
+  AuthenticatedAdminPersonalizacaoHomeRoute: typeof AuthenticatedAdminPersonalizacaoHomeRoute
 }
 
 const AuthenticatedAdminRouteRouteChildren: AuthenticatedAdminRouteRouteChildren =
@@ -747,6 +768,8 @@ const AuthenticatedAdminRouteRouteChildren: AuthenticatedAdminRouteRouteChildren
       AuthenticatedAdminPaginasQuemSomosRoute,
     AuthenticatedAdminPaginasTrabalheConoscoRoute:
       AuthenticatedAdminPaginasTrabalheConoscoRoute,
+    AuthenticatedAdminPersonalizacaoHomeRoute:
+      AuthenticatedAdminPersonalizacaoHomeRoute,
   }
 
 const AuthenticatedAdminRouteRouteWithChildren =
@@ -786,3 +809,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}

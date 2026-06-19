@@ -5,6 +5,8 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable";
 
+const ENABLE_GOOGLE_LOGIN = false;
+
 type AuthSearch = { redirect?: string };
 
 export const Route = createFileRoute("/auth")({
@@ -256,21 +258,24 @@ function AuthPage() {
           <p className="mt-1 text-sm text-muted-foreground">
             {mode === "login" ? "Faça login para continuar" : "Leva menos de 30 segundos"}
           </p>
+          {ENABLE_GOOGLE_LOGIN && (
+            <>
+              <button
+                onClick={handleGoogle}
+                disabled={loading}
+                className="mt-6 flex h-12 w-full items-center justify-center gap-3 rounded-xl border border-border bg-card font-medium transition hover:border-brand hover:bg-surface disabled:opacity-50"
+              >
+                <svg viewBox="0 0 24 24" className="h-5 w-5" aria-hidden>
+                  <path fill="#EA4335" d="M12 10.2v3.9h5.5c-.2 1.3-1.6 3.8-5.5 3.8-3.3 0-6-2.7-6-6s2.7-6 6-6c1.9 0 3.2.8 3.9 1.5l2.7-2.6C16.9 3.2 14.7 2.2 12 2.2 6.5 2.2 2 6.7 2 12.2s4.5 10 10 10c5.8 0 9.6-4.1 9.6-9.8 0-.7-.1-1.2-.2-1.8H12z"/>
+                </svg>
+                Continuar com Google
+              </button>
 
-          <button
-            onClick={handleGoogle}
-            disabled={loading}
-            className="mt-6 flex h-12 w-full items-center justify-center gap-3 rounded-xl border border-border bg-card font-medium transition hover:border-brand hover:bg-surface disabled:opacity-50"
-          >
-            <svg viewBox="0 0 24 24" className="h-5 w-5" aria-hidden>
-              <path fill="#EA4335" d="M12 10.2v3.9h5.5c-.2 1.3-1.6 3.8-5.5 3.8-3.3 0-6-2.7-6-6s2.7-6 6-6c1.9 0 3.2.8 3.9 1.5l2.7-2.6C16.9 3.2 14.7 2.2 12 2.2 6.5 2.2 2 6.7 2 12.2s4.5 10 10 10c5.8 0 9.6-4.1 9.6-9.8 0-.7-.1-1.2-.2-1.8H12z"/>
-            </svg>
-            Continuar com Google
-          </button>
-
-          <div className="my-6 flex items-center gap-3 text-xs text-muted-foreground">
-            <div className="h-px flex-1 bg-border" /> ou <div className="h-px flex-1 bg-border" />
-          </div>
+              <div className="my-6 flex items-center gap-3 text-xs text-muted-foreground">
+                <div className="h-px flex-1 bg-border" /> ou <div className="h-px flex-1 bg-border" />
+              </div>
+            </>
+          )}
 
           <form onSubmit={handleEmail} className="space-y-3">
             {mode === "signup" && (
